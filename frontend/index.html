@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Extrator de Importação — Aconsult</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Extrator de Importação <span class="badge">mockup</span></h1>
+    <p class="sub">Suba os PDFs de <strong>um processo</strong> → confira os dados → gere os arquivos.</p>
+  </header>
+
+  <main>
+    <!-- Passo 1: upload -->
+    <section id="passo-upload" class="card">
+      <h2>1. Documentos do processo</h2>
+      <div id="dropzone" class="dropzone">
+        <p>Arraste os PDFs aqui ou <label class="link" for="file-input">clique para escolher</label>.</p>
+        <input id="file-input" type="file" accept="application/pdf" multiple hidden />
+        <ul id="file-list" class="file-list"></ul>
+      </div>
+      <button id="btn-extrair" class="btn primary" disabled>Extrair dados</button>
+      <span id="extrair-status" class="status"></span>
+    </section>
+
+    <!-- Passo 2: conferência + middleware -->
+    <section id="passo-conferencia" class="card hidden">
+      <h2>2. Conferência e Middleware</h2>
+
+      <div id="avisos" class="avisos hidden"></div>
+
+      <h3>Dados extraídos (editáveis)</h3>
+      <div id="campos-processo" class="grid"></div>
+
+      <h3>Middleware (preenchido pelo operador)</h3>
+      <div id="campos-middleware" class="grid"></div>
+
+      <h3>Lançamentos Domínio (Saída B) — pré-preenchidos pelo de-para</h3>
+      <table id="tabela-lancamentos" class="tabela">
+        <thead>
+          <tr>
+            <th>Descrição / Histórico</th><th>Valor</th>
+            <th>Conta Débito</th><th>Conta Crédito</th><th>Cód. Hist.</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <label class="check"><input type="checkbox" id="incluir-c" /> Incluir Saída C (cadastro de fornecedor)</label>
+
+      <div class="acoes">
+        <button id="btn-gerar" class="btn primary">Gerar arquivos</button>
+        <button id="btn-recomecar" class="btn">Recomeçar</button>
+        <span id="gerar-status" class="status"></span>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <small>Extração crua (sem conciliação/câmbio) · Fechamentos: TERRA e WIN · Aconsult</small>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

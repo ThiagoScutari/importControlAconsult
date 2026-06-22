@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>README.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="extrator-de-importação--domínio-mockup">Extrator de Importação → Domínio (mockup)</h1>
+<blockquote>
+<p>Um protótipo que <strong>lê os PDFs de um processo de importação</strong>, extrai os dados
+automaticamente, deixa o operador <strong>conferir e completar</strong> o que falta, e
+<strong>gera os arquivos</strong> prontos para o controle interno e para o sistema Domínio.</p>
+</blockquote>
+<p>Este é um <strong>mockup de validação de fluxo</strong> para a contabilidade <strong>Aconsult</strong>.
+Ele serve para mostrar à key user que a ideia funciona — <strong>não é o sistema de
+produção</strong>. Não tem banco de dados, login, nem nada que precise ser instalado em
+servidor: roda no seu computador e abre no navegador.</p>
+<hr>
+<h2 id="1-para-quem-é-isto-e-o-que-ele-faz">1. Para quem é isto e o que ele faz</h2>
+<p>Hoje, a cada importação, alguém precisa <strong>abrir vários PDFs</strong> (a declaração de
+importação, a nota fiscal, o fechamento do despachante) e <strong>digitar os dados à
+mão</strong> numa planilha de controle e no Domínio. É lento e dá erro.</p>
+<p>Este mockup automatiza a parte chata:</p>
+<ol>
+<li>Você <strong>arrasta os PDFs</strong> daquele processo para a tela.</li>
+<li>O sistema <strong>lê e extrai</strong> os campos (número da DI/DUIMP, valores, tributos,
+fornecedor, navio, etc.).</li>
+<li>Você <strong>confere na tela</strong> e preenche os poucos campos que <strong>não existem nos
+documentos</strong> (as contas contábeis, o histórico — a chamada camada <em>Middleware</em>).</li>
+<li>Você clica em <strong>Gerar arquivos</strong> e baixa tudo prontinho.</li>
+</ol>
+<hr>
+<h2 id="2-o-problema-que-ele-resolve-e-o-contexto">2. O problema que ele resolve (e o contexto)</h2>
+<p>A importação envolve documentos de origens diferentes que <strong>não conversam entre si</strong>:</p>
+<ul>
+<li><strong>DUIMP</strong> ou <strong>DI</strong> — a declaração de importação (dados oficiais, tributos).</li>
+<li><strong>Nota Fiscal de Importação</strong> (DANFE de entrada) — número, valor, ICMS, chave.</li>
+<li><strong>Fechamento do despachante</strong> — a &quot;conta&quot; das despesas (frete, AFRMM, armazenagem…).
+Cada despachante usa um layout próprio; aqui suportamos <strong>TERRA</strong> e <strong>WIN TRADING</strong>.</li>
+</ul>
+<p>O fluxo completo está ilustrado na imagem <strong><code>docs/imagem.png</code></strong>:</p>
+<pre class="hljs"><code><div>[Upload dos PDFs] → [Extração automática] → [Conferência + Middleware] → [Gerar arquivos]
+   (1 processo)        (campos do documento)    (operador completa contas,    (downloads)
+                                                  histórico, etc.)
+</div></code></pre>
+<p>O resultado são três arquivos (explicados na seção 5).</p>
+<blockquote>
+<p><strong>Importante:</strong> nesta etapa fazemos <strong>extração crua</strong> — apenas lemos os dados.
+Não comparamos divergências entre documentos nem tratamos câmbio.</p>
+</blockquote>
+<hr>
+<h2 id="3-como-instalar-e-rodar-passo-a-passo">3. Como instalar e rodar (passo a passo)</h2>
+<p>Pré-requisito: <strong>Python 3.11 ou superior</strong> instalado.</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># 1. (opcional, recomendado) crie um ambiente virtual</span>
+python -m venv .venv
+<span class="hljs-comment"># Windows:</span>
+.venv\Scripts\activate
+<span class="hljs-comment"># Linux/Mac:</span>
+<span class="hljs-built_in">source</span> .venv/bin/activate
+
+<span class="hljs-comment"># 2. instale as dependências</span>
+pip install -r requirements.txt
+
+<span class="hljs-comment"># 3. rode o servidor</span>
+uvicorn backend.main:app --reload
+
+<span class="hljs-comment"># 4. abra no navegador</span>
+<span class="hljs-comment">#    http://localhost:8000</span>
+</div></code></pre>
+<p>Para rodar os <strong>testes automatizados</strong> (que conferem a extração contra os
+exemplos reais em <code>assets/</code>):</p>
+<pre class="hljs"><code><div>pytest
+</div></code></pre>
+<hr>
+<h2 id="4-como-usar-o-mockup-tutorial">4. Como usar o mockup (tutorial)</h2>
+<ol>
+<li><strong>Abra</strong> <code>http://localhost:8000</code>.</li>
+<li><strong>Arraste os PDFs</strong> de <strong>um único processo</strong> para a área pontilhada
+(ou clique para escolher). Ex.: a <code>DUIMP 1159.pdf</code> + a
+<code>NOTA FISCAL DE IMPORTAÇÃO 1159.pdf</code>.</li>
+<li>Clique em <strong>Extrair dados</strong>. O sistema identifica cada documento pelo
+conteúdo e mostra os campos extraídos.</li>
+<li><strong>Confira os dados extraídos</strong> (estão todos editáveis — corrija o que quiser).
+<ul>
+<li>Avisos em destaque mostram <strong>campos não encontrados</strong> e <strong>divergências</strong>
+entre documentos, sem travar o fluxo.</li>
+</ul>
+</li>
+<li><strong>Preencha o Middleware</strong> — os campos que <strong>não vêm dos PDFs</strong>:
+tipo de importação, entidade contábil, <strong>contas de débito/crédito</strong>,
+<strong>código de histórico</strong>, complemento, data do lançamento.
+<ul>
+<li>A tabela <strong>de-para</strong> já pré-preenche contas/histórico a partir do
+fornecedor e do tipo de despesa (você só ajusta).</li>
+</ul>
+</li>
+<li>(Opcional) marque <strong>Incluir Saída C</strong>.</li>
+<li>Clique em <strong>Gerar arquivos</strong> → o navegador baixa um <strong><code>.zip</code></strong> com as saídas.</li>
+</ol>
+<blockquote>
+<p>Você pode subir só <strong>um</strong> documento (ex.: só a DUIMP). O sistema não quebra —
+apenas avisa o que ficou faltando.</p>
+</blockquote>
+<hr>
+<h2 id="5-o-que-cada-arquivo-de-saída-significa">5. O que cada arquivo de saída significa</h2>
+<p>Ao gerar, você recebe um <code>.zip</code> com:</p>
+<table>
+<thead>
+<tr>
+<th>Arquivo</th>
+<th>O que é</th>
+<th>Para quê serve</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>saida_A_extracao.csv</code></strong></td>
+<td><strong>Saída A</strong> — uma linha com todos os dados do processo</td>
+<td>Prova da extração; alimenta o controle interno de importações</td>
+</tr>
+<tr>
+<td><code>saida_A_rastreavel.csv</code></td>
+<td>Versão &quot;rastreável&quot; da A (formato <code>Processo;Documento;Campo;Valor;Fonte</code>)</td>
+<td>Mostra <strong>de qual documento</strong> veio cada dado — ótimo para auditoria/apresentação</td>
+</tr>
+<tr>
+<td><strong><code>saida_B_lancamentos_dominio.csv</code></strong> e <code>.txt</code></td>
+<td><strong>Saída B</strong> — lançamentos contábeis (partidas) no <strong>layout da macro do Domínio</strong></td>
+<td>Importação <strong>manual</strong> no Domínio. 10 colunas, separadas por <code>;</code>, <strong>sem cabeçalho</strong></td>
+</tr>
+<tr>
+<td><code>saida_C_fornecedores.csv</code> <em>(se marcado)</em></td>
+<td><strong>Saída C</strong> — cadastro do fornecedor estrangeiro</td>
+<td>Controle interno / cadastro (bônus)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Layout da Saída B</strong> (igual à macro <code>Sub Gerar()</code>):</p>
+<pre class="hljs"><code><div>Data;Cód.Conta Débito;Cód.Conta Crédito;Valor;Cód.Histórico;Complemento Histórico;Inicia Lote;Matriz/Filial;CC Débito;CC Crédito
+</div></code></pre>
+<p>Exemplo de linha gerada:</p>
+<pre class="hljs"><code><div>30/04/2026;5210;805;1595,46;59;PROCESSO 870 ... - AFRMM;;;;
+</div></code></pre>
+<hr>
+<h2 id="6-estrutura-de-pastas">6. Estrutura de pastas</h2>
+<pre class="hljs"><code><div>.
+├── assets/                  # PDFs de exemplo (usados como fixtures dos testes)
+├── docs/                    # imagem.png — o fluxo ilustrado
+├── backend/                 # o &quot;cérebro&quot; (Python/FastAPI)
+│   ├── main.py              # app + rotas (/extract, /generate, /) + serve o front
+│   ├── models.py            # schemas dos dados (Pydantic)
+│   ├── pdf_utils.py         # ler texto do PDF + converter números/datas BR
+│   ├── detector.py          # descobre o tipo do documento pelo conteúdo
+│   ├── extractors/          # um extrator por tipo de documento
+│   │   ├── comum.py         # bloco compartilhado entre DI e DUIMP
+│   │   ├── duimp.py · di.py · nota_fiscal.py
+│   │   └── fechamento_terra.py · fechamento_win.py
+│   ├── consolidador.py      # junta os documentos em 1 registro de processo
+│   ├── depara.py            # tabela de-para (fornecedor/despesa → conta/histórico)
+│   └── outputs.py           # gera os CSVs A, B e C
+├── frontend/                # a tela (HTML/CSS/JS puro)
+│   ├── index.html · app.js · styles.css
+├── tests/                   # testes automatizados (pytest)
+├── requirements.txt
+└── README.md
+</div></code></pre>
+<hr>
+<h2 id="7-o-que-está-e-o-que-não-está-no-escopo">7. O que está e o que não está no escopo</h2>
+<p><strong>Está no escopo:</strong></p>
+<ul>
+<li>Upload por arrastar/soltar de vários PDFs de <strong>um processo</strong>.</li>
+<li>Extração de <strong>DUIMP</strong>, <strong>DI</strong>, <strong>NF de Importação</strong>, e dos fechamentos
+<strong>TERRA</strong> e <strong>WIN TRADING</strong>.</li>
+<li>Camada <strong>Middleware</strong> (operador confere e completa) com <strong>de-para</strong>.</li>
+<li>Geração das <strong>Saídas A, B e C</strong>.</li>
+</ul>
+<p><strong>NÃO está no escopo (por enquanto):</strong></p>
+<ul>
+<li><strong>Conciliação / validação de divergências</strong> entre DI/DUIMP, NF e Fechamento —
+aqui é só <strong>extração crua</strong> (divergências são apenas <em>sinalizadas</em> em avisos).</li>
+<li><strong>Câmbio e variação cambial</strong>.</li>
+<li>Outros layouts de fechamento além de TERRA e WIN.</li>
+<li><strong>OCR</strong> de documentos escaneados (os exemplos têm camada de texto).</li>
+<li>Integração automática com o Domínio — a importação segue <strong>manual</strong> (anexar o arquivo).</li>
+<li>Banco de dados, login, multiusuário.</li>
+</ul>
+<hr>
+<h2 id="8-limitações-conhecidas-e-próximos-passos">8. Limitações conhecidas e próximos passos</h2>
+<p><strong>Limitações:</strong></p>
+<ul>
+<li>Os extratores foram calibrados nos exemplos reais de <code>assets/</code>. PDFs com
+layout muito diferente (ou escaneados, sem texto) podem não ser lidos.</li>
+<li>Os fechamentos são <strong>despadronizados</strong> — o maior risco de extração. Campos
+como &quot;navio/origem/destino&quot; do TERRA são lidos por aproximação.</li>
+<li>A tabela <strong>de-para</strong> é um <em>seed</em> pequeno (alguns fornecedores/despesas de
+exemplo). Em produção viraria uma tabela editável por cliente.</li>
+<li>As colunas da Saída A e o layout exato da Saída B ainda devem ser
+<strong>confirmados na reunião</strong> com a key user.</li>
+</ul>
+<p><strong>Próximos passos sugeridos:</strong></p>
+<ol>
+<li>Validar o fluxo e os arquivos com a key user (Larissa).</li>
+<li>Confirmar a lista final de colunas e o plano de contas/históricos (de-para).</li>
+<li>Definir a regra de <strong>entidade contábil</strong> em conta e ordem (trading × adquirente).</li>
+<li>Evoluir para produção: parsers mais robustos, de-para em banco, OCR e,
+eventualmente, conciliação de divergências.</li>
+</ol>
+<blockquote>
+<p>Este mockup é <strong>descartável</strong> — ele prova o fluxo, mas <strong>não dita</strong> a
+arquitetura final do produto.</p>
+</blockquote>
+
+</body>
+</html>

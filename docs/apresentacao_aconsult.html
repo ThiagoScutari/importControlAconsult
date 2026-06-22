@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aconsult · Validação do Extrator de Importação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#15212B; --paper:#F4F2EC; --surface:#FFFFFF; --line:#E2DED4;
+    --muted:#6A7178; --green:#1F6F5C; --green-d:#185749; --amber:#A9761A; --brick:#C2543A;
+    --shadow:0 1px 2px rgba(21,33,43,.04), 0 8px 24px rgba(21,33,43,.06);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Inter",system-ui,sans-serif; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--green-d)}
+
+  /* ---- sticky header ---- */
+  header{
+    position:sticky; top:0; z-index:50; background:rgba(244,242,236,.92);
+    backdrop-filter:saturate(150%) blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .bar{max-width:920px; margin:0 auto; padding:14px 24px; display:flex; align-items:center; gap:18px; flex-wrap:wrap}
+  .brand{display:flex; flex-direction:column; gap:2px; margin-right:auto}
+  .brand .eyebrow{font:600 11px/1 "IBM Plex Mono",monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--green-d)}
+  .brand h1{font:700 17px/1.15 "Space Grotesk",sans-serif; margin:0; letter-spacing:-.01em}
+  .meta{display:flex; align-items:center; gap:10px}
+  .meta label{font:600 11px/1 "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+  input[type=date]{
+    font:500 13px "Inter",sans-serif; color:var(--ink); border:1px solid var(--line);
+    background:var(--surface); border-radius:8px; padding:7px 10px;
+  }
+  .progress{display:flex; align-items:center; gap:10px; min-width:200px}
+  .progress .track{flex:1; height:7px; background:#E7E3DA; border-radius:99px; overflow:hidden}
+  .progress .fill{height:100%; width:0%; background:linear-gradient(90deg,var(--green),var(--green-d)); transition:width .35s ease}
+  .progress .count{font:600 12px/1 "IBM Plex Mono",monospace; color:var(--muted); white-space:nowrap}
+  .btn{
+    font:600 13px "Inter",sans-serif; border:0; cursor:pointer; border-radius:9px;
+    padding:10px 16px; transition:transform .08s ease, background .15s ease;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:var(--green); color:#fff}
+  .btn-primary:hover{background:var(--green-d)}
+  .btn-ghost{background:transparent; color:var(--ink); border:1px solid var(--line)}
+  .btn-ghost:hover{background:#fff}
+
+  /* ---- layout ---- */
+  main{max-width:920px; margin:0 auto; padding:36px 24px 80px}
+  .lede{font:400 15px/1.6 "Inter",sans-serif; color:var(--muted); max-width:64ch; margin:0 0 30px}
+  .lede b{color:var(--ink); font-weight:600}
+
+  section{margin:0 0 34px}
+  .sec-head{display:flex; align-items:baseline; gap:12px; margin:0 0 14px; padding-bottom:8px; border-bottom:2px solid var(--ink)}
+  .sec-head .idx{font:600 12px/1 "IBM Plex Mono",monospace; color:var(--green-d); letter-spacing:.1em}
+  .sec-head h2{font:700 20px/1.1 "Space Grotesk",sans-serif; margin:0; letter-spacing:-.01em}
+  .sec-head .hint{margin-left:auto; font:500 12px "IBM Plex Mono",monospace; color:var(--muted)}
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); overflow:hidden}
+
+  /* roteiro */
+  ol.steps{list-style:none; margin:0; padding:0}
+  ol.steps li{display:flex; gap:14px; padding:14px 16px; border-bottom:1px solid var(--line)}
+  ol.steps li:last-child{border-bottom:0}
+  .step-check{flex:0 0 auto; margin-top:2px}
+  .step-num{font:600 12px "IBM Plex Mono",monospace; color:var(--muted); flex:0 0 26px; padding-top:2px}
+  .step-body{flex:1}
+  .step-body .t{font-weight:600}
+  .step-body .d{font-size:13.5px; color:var(--muted)}
+  .step-note{margin-top:8px; width:100%; font:400 13px "Inter",sans-serif; color:var(--ink);
+    border:1px solid var(--line); border-radius:8px; padding:7px 10px; background:#FCFBF8; resize:vertical; min-height:34px}
+  li.done{background:#F3F8F5}
+  li.done .step-body .t{text-decoration:line-through; text-decoration-color:var(--green); text-decoration-thickness:1.5px}
+
+  /* decisões */
+  .decision{padding:16px; border-bottom:1px solid var(--line)}
+  .decision:last-child{border-bottom:0}
+  .decision .top{display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap}
+  .decision .num{font:600 13px "IBM Plex Mono",monospace; color:var(--green-d); flex:0 0 auto; padding-top:3px}
+  .decision .qt{flex:1; min-width:240px}
+  .decision .qt .t{font-weight:600}
+  .decision .qt .d{font-size:13.5px; color:var(--muted)}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; background:#FCFBF8}
+  .seg button{font:600 12px "Inter",sans-serif; border:0; background:transparent; color:var(--muted); padding:8px 12px; cursor:pointer; transition:.12s}
+  .seg button + button{border-left:1px solid var(--line)}
+  .seg button[aria-pressed="true"][data-v="pendente"]{background:#FBF3E2; color:var(--amber)}
+  .seg button[aria-pressed="true"][data-v="confirmado"]{background:#E9F4EF; color:var(--green-d)}
+  .seg button[aria-pressed="true"][data-v="ajustar"]{background:#F8EBE7; color:var(--brick)}
+  .fields{display:grid; grid-template-columns:1fr; gap:8px; margin-top:12px}
+  .fields label{font:600 10.5px "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:-2px}
+  .fields input, .fields textarea{font:400 13.5px "Inter",sans-serif; color:var(--ink);
+    border:1px solid var(--line); border-radius:8px; padding:8px 10px; background:#FCFBF8; width:100%; resize:vertical}
+  .fields textarea{min-height:44px}
+
+  /* riscos */
+  ul.risks{list-style:none; margin:0; padding:0}
+  ul.risks li{display:flex; gap:12px; padding:13px 16px; border-bottom:1px solid var(--line)}
+  ul.risks li:last-child{border-bottom:0}
+  ul.risks .rt{flex:1}
+  ul.risks .rt .t{font-weight:600; font-size:14px}
+  ul.risks .rt .d{font-size:13px; color:var(--muted)}
+  .risk-note{margin-top:7px; width:100%; font:400 13px "Inter",sans-serif; border:1px solid var(--line);
+    border-radius:8px; padding:7px 10px; background:#FCFBF8; resize:vertical; min-height:32px}
+
+  /* checkbox */
+  input[type=checkbox]{appearance:none; width:19px; height:19px; border:1.5px solid #C4C0B4; border-radius:6px;
+    background:#fff; cursor:pointer; display:grid; place-content:center; transition:.12s}
+  input[type=checkbox]:hover{border-color:var(--green)}
+  input[type=checkbox]:checked{background:var(--green); border-color:var(--green)}
+  input[type=checkbox]:checked::after{content:""; width:5px; height:9px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg) translateY(-1px)}
+
+  /* observações */
+  textarea.obs{width:100%; min-height:120px; font:400 14px "Inter",sans-serif; color:var(--ink);
+    border:1px solid var(--line); border-radius:12px; padding:14px; background:var(--surface); box-shadow:var(--shadow); resize:vertical}
+
+  /* modal */
+  .overlay{position:fixed; inset:0; background:rgba(21,33,43,.45); display:none; align-items:center; justify-content:center; z-index:100; padding:24px}
+  .overlay.open{display:flex}
+  .modal{background:var(--surface); border-radius:14px; max-width:760px; width:100%; max-height:86vh; display:flex; flex-direction:column; box-shadow:0 24px 70px rgba(21,33,43,.3)}
+  .modal-head{display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid var(--line)}
+  .modal-head h3{font:700 16px "Space Grotesk",sans-serif; margin:0; margin-right:auto}
+  .modal pre{margin:0; overflow:auto; padding:18px 20px; font:400 12.5px/1.6 "IBM Plex Mono",monospace; color:var(--ink); white-space:pre-wrap; background:#FBFAF7; flex:1}
+  .modal-foot{display:flex; gap:10px; justify-content:flex-end; padding:14px 20px; border-top:1px solid var(--line); flex-wrap:wrap}
+  .x{border:0;background:transparent;font-size:20px;color:var(--muted);cursor:pointer;line-height:1}
+  .toast{position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--ink); color:#fff;
+    font:500 13px "Inter",sans-serif; padding:10px 18px; border-radius:10px; opacity:0; transition:.25s; z-index:120; pointer-events:none}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  @media (max-width:560px){
+    .bar{padding:12px 16px} main{padding:24px 16px 64px}
+    .progress{order:3; width:100%}
+    .brand{margin-right:0}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">
+      <span class="eyebrow">Aconsult · Reunião de validação</span>
+      <h1>Extrator de Importação → Domínio</h1>
+    </div>
+    <div class="meta">
+      <label for="dt">Data</label>
+      <input type="date" id="dt">
+    </div>
+    <div class="progress" title="Decisões com status Confirmado">
+      <div class="track"><div class="fill" id="fill"></div></div>
+      <span class="count" id="count">0/8 confirmadas</span>
+    </div>
+    <button class="btn btn-primary" id="gen">Gerar base de conhecimento</button>
+  </div>
+</header>
+
+<main>
+  <p class="lede">
+    Roteiro para conduzir a demonstração com a key user <b>Larissa</b> e capturar, ao vivo, o que ficar
+    decidido. Marque cada passo conforme demonstra, defina o status de cada decisão e anote ao lado.
+    Ao final, clique em <b>Gerar base de conhecimento</b> para baixar um resumo da reunião.
+  </p>
+
+  <!-- ROTEIRO -->
+  <section>
+    <div class="sec-head"><span class="idx">A</span><h2>Roteiro da apresentação</h2><span class="hint">marque conforme demonstra</span></div>
+    <div class="card">
+      <ol class="steps" id="steps"></ol>
+    </div>
+  </section>
+
+  <!-- DECISÕES -->
+  <section>
+    <div class="sec-head"><span class="idx">B</span><h2>Decisões a confirmar</h2><span class="hint">status · valor · observação</span></div>
+    <div class="card" id="decisions"></div>
+  </section>
+
+  <!-- RISCOS -->
+  <section>
+    <div class="sec-head"><span class="idx">C</span><h2>Riscos &amp; pendências técnicas</h2><span class="hint">o que ainda precisa de cuidado</span></div>
+    <div class="card"><ul class="risks" id="risks"></ul></div>
+  </section>
+
+  <!-- OBSERVAÇÕES -->
+  <section>
+    <div class="sec-head"><span class="idx">D</span><h2>Observações gerais</h2></div>
+    <textarea class="obs" id="obs" placeholder="Anotações livres da conversa, combinações, próximos passos acordados…"></textarea>
+  </section>
+</main>
+
+<!-- modal de preview -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Base de conhecimento</h3>
+      <button class="x" id="closeX" aria-label="Fechar">×</button>
+    </div>
+    <pre id="preview"></pre>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="copy">Copiar</button>
+      <button class="btn btn-primary" id="download">Baixar .md</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- dados ---------- */
+const STEPS = [
+  ["Contexto do fluxo","Mostrar o fluxo atual (manual: planilha + macro → txt) versus o automatizado. Abrir a imagem do fluxo (docs/)."],
+  ["Abrir o mockup","Subir o servidor e abrir a tela inicial do extrator."],
+  ["Processo 1159 — extração","Arrastar a DUIMP + a NF de importação e mostrar a extração automática dos campos."],
+  ["Conferência e avisos","Revisar os campos extraídos e os avisos (campos não encontrados / divergências entre documentos)."],
+  ["Middleware","Preencher tipo de importação, entidade contábil, contas e histórico (pré-preenchidos pelo de-para) e a data."],
+  ["Gerar arquivos","Gerar e abrir a Saída A (extração), a Saída B (partidas Domínio, 10 colunas) e a Saída C (cadastro de fornecedor)."],
+  ["Processo 870 — DI + Fechamento","Repetir com a DI e o Fechamento TERRA, mostrando suporte a DI e a fechamento despadronizado."],
+  ["Fechamento WIN","Abrir o Fechamento WIN para evidenciar um parser para um layout diferente de despachante."],
+  ["Fechar com o checklist","Passar pelas decisões a confirmar e combinar os próximos passos."]
+];
+
+const DECISIONS = [
+  ["Campos finais da Saída A","Confirmar a lista definitiva de colunas do CSV de extração."],
+  ["Plano de contas + históricos (de-para)","Definir contas de débito/crédito e códigos de histórico por cliente para alimentar o de-para."],
+  ["Entidade contábil em conta e ordem","Em conta e ordem, lançar nos livros da trading ou do adquirente?"],
+  ["Formato da data no arquivo do Domínio","Confirmar dd/mm/aaaa (ou outro) no arquivo de partidas."],
+  ["Saída C (cadastro de fornecedor)","Decidir se o cadastro de fornecedor entra na entrega final."],
+  ["Layouts de fechamento adicionais","Quais despachantes além de TERRA e WIN? Pedir 2–3 amostras de cada."],
+  ["Volume mensal de processos","Quantos processos por mês? Dimensiona a solução de produção."],
+  ["Destino no Domínio = partidas","Confirmar com quem opera o Domínio que o destino é lançamentos contábeis."]
+];
+
+const RISKS = [
+  ["Fechamentos variam entre despachantes","É o maior risco de extração. Cada layout precisa de um parser próprio — começar por TERRA e WIN e ampliar com amostras."],
+  ["Cobertura de testes","Os 51 testes validam 1 exemplo por documento. Robustez real exige mais amostras de cada tipo."],
+  ["Fechamento escaneado → OCR","Se algum despachante enviar PDF escaneado, será necessário OCR (fora desta etapa, previsto para produção)."],
+  ["Placeholders pendentes","Saída A (colunas) e a tabela de-para usam valores provisórios até a validação desta reunião."]
+];
+
+/* ---------- montar ---------- */
+const stepsEl = document.getElementById('steps');
+STEPS.forEach((s,i)=>{
+  const li=document.createElement('li');
+  li.innerHTML=`<input type="checkbox" class="step-check" data-i="${i}">
+    <span class="step-num">${String(i+1).padStart(2,'0')}</span>
+    <div class="step-body"><div class="t">${s[0]}</div><div class="d">${s[1]}</div>
+    <textarea class="step-note" placeholder="nota deste passo…"></textarea></div>`;
+  stepsEl.appendChild(li);
+});
+
+const decEl=document.getElementById('decisions');
+DECISIONS.forEach((d,i)=>{
+  const wrap=document.createElement('div');
+  wrap.className='decision';
+  wrap.innerHTML=`
+    <div class="top">
+      <span class="num">${String(i+1).padStart(2,'0')}</span>
+      <div class="qt"><div class="t">${d[0]}</div><div class="d">${d[1]}</div></div>
+      <div class="seg" data-i="${i}" role="group" aria-label="status">
+        <button data-v="pendente" aria-pressed="true">Pendente</button>
+        <button data-v="confirmado" aria-pressed="false">Confirmado</button>
+        <button data-v="ajustar" aria-pressed="false">Ajustar</button>
+      </div>
+    </div>
+    <div class="fields">
+      <label>Decisão / valor acordado</label>
+      <input type="text" class="dec-val" placeholder="ex.: lançar nos livros do adquirente">
+      <label>Observação</label>
+      <textarea class="dec-note" placeholder="contexto, ressalvas, quem confirma…"></textarea>
+    </div>`;
+  decEl.appendChild(wrap);
+});
+
+const risksEl=document.getElementById('risks');
+RISKS.forEach((r,i)=>{
+  const li=document.createElement('li');
+  li.innerHTML=`<input type="checkbox" data-i="${i}">
+    <div class="rt"><div class="t">${r[0]}</div><div class="d">${r[1]}</div>
+    <textarea class="risk-note" placeholder="encaminhamento…"></textarea></div>`;
+  risksEl.appendChild(li);
+});
+
+/* data de hoje */
+document.getElementById('dt').valueAsDate=new Date();
+
+/* ---------- interações ---------- */
+stepsEl.addEventListener('change',e=>{
+  if(e.target.classList.contains('step-check')) e.target.closest('li').classList.toggle('done',e.target.checked);
+});
+
+let confirmed=new Array(DECISIONS.length).fill('pendente');
+decEl.addEventListener('click',e=>{
+  const b=e.target.closest('.seg button'); if(!b) return;
+  const seg=b.closest('.seg'); const i=+seg.dataset.i;
+  [...seg.querySelectorAll('button')].forEach(x=>x.setAttribute('aria-pressed', x===b?'true':'false'));
+  confirmed[i]=b.dataset.v;
+  updateProgress();
+});
+function updateProgress(){
+  const n=confirmed.filter(v=>v==='confirmado').length;
+  document.getElementById('fill').style.width=(n/DECISIONS.length*100)+'%';
+  document.getElementById('count').textContent=`${n}/${DECISIONS.length} confirmadas`;
+}
+
+/* ---------- export ---------- */
+function buildMarkdown(){
+  const dt=document.getElementById('dt').value || '—';
+  const now=new Date().toLocaleString('pt-BR');
+  const n=confirmed.filter(v=>v==='confirmado').length;
+  let m=`# Base de conhecimento — Reunião Aconsult\n`;
+  m+=`**Projeto:** Extrator de Importação → Domínio (mockup de validação)\n`;
+  m+=`**Data da reunião:** ${dt}  \n**Gerado em:** ${now}\n\n`;
+  m+=`**Progresso:** ${n}/${DECISIONS.length} decisões confirmadas\n\n---\n\n`;
+
+  m+=`## Roteiro demonstrado\n`;
+  document.querySelectorAll('#steps li').forEach((li,i)=>{
+    const done=li.querySelector('.step-check').checked;
+    const note=li.querySelector('.step-note').value.trim();
+    m+=`- [${done?'x':' '}] ${STEPS[i][0]}`;
+    if(note) m+=` — _${note}_`;
+    m+=`\n`;
+  });
+
+  m+=`\n## Decisões\n`;
+  document.querySelectorAll('#decisions .decision').forEach((d,i)=>{
+    const status=confirmed[i].toUpperCase();
+    const val=d.querySelector('.dec-val').value.trim();
+    const note=d.querySelector('.dec-note').value.trim();
+    m+=`\n### ${i+1}. ${DECISIONS[i][0]} — **${status}**\n`;
+    m+=`- ${DECISIONS[i][1]}\n`;
+    if(val) m+=`- **Decisão/valor:** ${val}\n`;
+    if(note) m+=`- **Observação:** ${note}\n`;
+  });
+
+  m+=`\n## Riscos & pendências técnicas\n`;
+  document.querySelectorAll('#risks li').forEach((li,i)=>{
+    const done=li.querySelector('input').checked;
+    const note=li.querySelector('.risk-note').value.trim();
+    m+=`- [${done?'x':' '}] ${RISKS[i][0]} — ${RISKS[i][1]}`;
+    if(note) m+=`\n  - _${note}_`;
+    m+=`\n`;
+  });
+
+  const obs=document.getElementById('obs').value.trim();
+  m+=`\n## Observações gerais\n${obs||'_(sem anotações)_'}\n`;
+  return m;
+}
+
+const overlay=document.getElementById('overlay');
+document.getElementById('gen').addEventListener('click',()=>{
+  document.getElementById('preview').textContent=buildMarkdown();
+  overlay.classList.add('open');
+});
+document.getElementById('closeX').addEventListener('click',()=>overlay.classList.remove('open'));
+overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('open')});
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1900)}
+
+document.getElementById('download').addEventListener('click',()=>{
+  const dt=document.getElementById('dt').value || 'reuniao';
+  const blob=new Blob([buildMarkdown()],{type:'text/markdown;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`base_conhecimento_aconsult_${dt}.md`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('Arquivo .md baixado');
+});
+document.getElementById('copy').addEventListener('click',async()=>{
+  const txt=buildMarkdown();
+  try{ await navigator.clipboard.writeText(txt); toast('Copiado para a área de transferência'); }
+  catch(_){ const ta=document.getElementById('preview'); const r=document.createRange(); r.selectNodeContents(ta);
+    const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('Selecionado — use Ctrl/Cmd+C'); }
+});
+</script>
+</body>
+</html>
