@@ -11,7 +11,15 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from backend.consolidador import consolidar
-from backend.depara import sugerir_despesa, sugerir_fornecedor
+from backend.contabilizador import gerar_partidas, montar_nome_conta_processo
+from backend.depara import (
+    CategoriaLinha,
+    PapelConta,
+    classificar_linha,
+    codigo_conta,
+    sugerir_despesa,
+    sugerir_fornecedor,
+)
 from backend.detector import TipoDocumento, detectar_tipo
 from backend.extractors import (
     di,
@@ -23,7 +31,6 @@ from backend.extractors import (
 )
 from backend.models import GerarRequest
 from backend.outputs import (
-    gerar_lancamentos_sugeridos,
     gerar_saida_a,
     gerar_saida_a_rastreavel,
     gerar_saida_b,
@@ -77,17 +84,32 @@ async def extract(arquivos: List[UploadFile] = File(...)):
 
 
 def _sugestoes_middleware(processo) -> dict:
-    """Pré-preenchimento do middleware via de-para (fornecedor/despesa)."""
+    """Pré-preenchimento do middleware: de-para + nome da conta + classificação.
+
+    A classificação por linha (categoria) alimenta o dropdown da demo — o guard
+    §3 já vem sugerido, e o operador reclassifica se preciso.
+    """
     forn = sugerir_fornecedor(processo.fornecedor_estrangeiro) or {}
+    despesas = []
+    for d in processo.despesas:
+        cat = classificar_linha(d.get("descricao"), d.get("tipo"))
+        despesas.append({
+            "descricao": d.get("descricao"),
+            "valor": d.get("valor"),
+            "tipo": d.get("tipo"),
+            "categoria": cat.value,
+            **sugerir_despesa(d.get("descricao")),
+        })
     return {
         "tipo_importacao": processo.tipo_importacao,
+        "conta_processo_nome": montar_nome_conta_processo(processo),
+        "resultado_rs": processo.resultado_rs,
+        "papeis": {p.value: codigo_conta(p) for p in PapelConta},
+        "categorias_possiveis": [c.value for c in CategoriaLinha],
         "conta_debito": forn.get("conta", ""),
         "cod_historico": forn.get("cod_historico", ""),
         "data_lancamento": processo.data_nf or "",
-        "despesas": [
-            {"descricao": d.get("descricao"), "valor": d.get("valor"), **sugerir_despesa(d.get("descricao"))}
-            for d in processo.despesas
-        ],
+        "despesas": despesas,
     }
 
 
@@ -101,7 +123,9 @@ async def generate(req: GerarRequest):
     if middleware.tipo_importacao:
         processo.tipo_importacao = middleware.tipo_importacao
 
-    lancamentos = middleware.lancamentos or gerar_lancamentos_sugeridos(processo, middleware)
+    # Saída B: partidas do POP (motor). Se o operador editou a tabela e enviou
+    # lançamentos prontos, respeita-os; senão, gera pelo algoritmo 1.5.
+    lancamentos = middleware.lancamentos or gerar_partidas(processo, middleware)
 
     arquivos = {
         "saida_A_extracao.csv": gerar_saida_a([processo]),
