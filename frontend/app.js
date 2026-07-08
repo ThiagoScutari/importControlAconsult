@@ -242,26 +242,14 @@ function renderAvisos(avisos, naoReconhecidos) {
 $("#btn-gerar").addEventListener("click", gerar);
 $("#btn-recomecar").addEventListener("click", () => location.reload());
 
-const NUMERICOS = new Set(["valor_nf", "invoice_usd", "tx_di", "resultado_rs", "cotacao",
-  "fob_rs", "frete_rs", "valor_aduaneiro_rs", "ii", "ipi", "pis", "cofins", "cbs",
-  "ibs_uf", "ibs_mun", "siscomex", "afrmm", "icms", "armazenagem", "total_tributos",
-  "peso_liquido", "volumes"]);
-
-function numeroBR(valor) {
-  if (valor === "" || valor == null) return null;
-  const n = parseFloat(String(valor).replace(/\./g, "").replace(",", "."));
-  return isNaN(n) ? null : n;
-}
-function converteNumero(chave, valor) {
-  if (!NUMERICOS.has(chave)) return valor === "" ? null : valor;
-  return numeroBR(valor);
-}
-
+// Contrato de número na fronteira: o front NÃO parseia número. Envia o valor
+// bruto do campo (string); o backend (coerta_valor) coage com segurança,
+// tolerando tanto "382358.58" (float exibido) quanto "382.358,58" (edição BR).
 function coletarProcesso() {
   const p = Object.assign({}, estado.processo);
   CAMPOS_PROCESSO.forEach(([chave]) => {
     const inp = $("#proc__" + chave);
-    if (inp) p[chave] = converteNumero(chave, inp.value);
+    if (inp) p[chave] = inp.value === "" ? null : inp.value;
   });
   return p;
 }
@@ -272,8 +260,7 @@ function coletarMiddleware() {
   CAMPOS_MIDDLEWARE.forEach(([chave]) => {
     const inp = $("#mid__" + chave);
     if (!inp) return;
-    if (chave === "vlr_usd_pg_cambio" || chave === "tx_cambio") m[chave] = numeroBR(inp.value);
-    else m[chave] = inp.value || null;
+    m[chave] = inp.value === "" ? null : inp.value;  // câmbio incluso: string bruta
   });
 
   // Plano de contas (papel -> código)

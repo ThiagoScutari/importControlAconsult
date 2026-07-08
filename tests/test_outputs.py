@@ -6,10 +6,24 @@ from backend.extractors import duimp, di, nota_fiscal, fechamento_terra
 from backend.models import Lancamento, MiddlewareInput
 from backend.outputs import (
     COLUNAS_A,
+    fmt_br,
+    fmt_dominio,
     gerar_lancamentos_sugeridos,
     gerar_saida_a,
     gerar_saida_b,
 )
+
+
+class TestFormatacao:
+    def test_fmt_dominio(self):
+        assert fmt_dominio(276688.26) == "276688,26"
+        assert fmt_dominio(5.28) == "5,28"
+        assert fmt_dominio(382358.58) == "382358,58"
+
+    def test_fmt_br(self):
+        assert fmt_br(382358.58) == "382.358,58"
+        assert fmt_br(276688.26) == "276.688,26"
+        assert fmt_br(5.28, casas=4) == "5,2800"
 
 
 @pytest.fixture

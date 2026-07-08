@@ -1,7 +1,7 @@
 """Testes dos helpers de extração de texto e parsing BR."""
 import os
 
-from backend.pdf_utils import extract_text, parse_valor_br
+from backend.pdf_utils import coerta_valor, extract_text, parse_valor_br
 
 
 class TestParseValorBR:
@@ -36,6 +36,28 @@ class TestParseValorBR:
 
     def test_texto_sem_numero_retorna_none(self):
         assert parse_valor_br("ISENTO") is None
+
+
+class TestCoertaValor:
+    """Fronteira front↔back: ponto só é milhar quando há vírgula decimal."""
+
+    def test_float_inalterado(self):
+        assert coerta_valor(382358.58) == 382358.58
+        assert coerta_valor(965) == 965.0
+
+    def test_string_ponto_decimal_do_js(self):
+        # o bug: "382358.58" NÃO pode virar 38 milhões
+        assert coerta_valor("382358.58") == 382358.58
+        assert coerta_valor("5.28") == 5.28
+
+    def test_string_br_manual(self):
+        assert coerta_valor("382.358,58") == 382358.58
+        assert coerta_valor("276.688,26") == 276688.26
+        assert coerta_valor("R$ 5,28") == 5.28
+
+    def test_vazio_none(self):
+        assert coerta_valor("") is None
+        assert coerta_valor(None) is None
 
 
 class TestExtractText:

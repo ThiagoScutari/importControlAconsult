@@ -6,9 +6,16 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
+
+from backend.pdf_utils import coerta_valor
+
+# Tipo de valor numérico na fronteira: aceita float (extração) OU string do
+# formulário (round-trip), coagindo com segurança — sem tratar ponto como milhar
+# indevidamente. É o único ponto de parse de número vindo da requisição.
+ValorOpt = Annotated[Optional[float], BeforeValidator(coerta_valor)]
 
 
 class Aviso(BaseModel):
@@ -29,7 +36,7 @@ class ProcessoExtraido(BaseModel):
     di_duimp: Optional[str] = None
     data_nf: Optional[str] = None
     numero_nf: Optional[str] = None
-    valor_nf: Optional[float] = None
+    valor_nf: ValorOpt = None
     chave_nfe: Optional[str] = None
 
     # Partes
@@ -45,43 +52,43 @@ class ProcessoExtraido(BaseModel):
 
     # Invoice / câmbio
     invoice: Optional[str] = None
-    invoice_usd: Optional[float] = None  # campo 1 — VALOR INVOICE US$ (Invoice > VMCV DUIMP)
-    cotacao: Optional[float] = None
+    invoice_usd: ValorOpt = None  # campo 1 — VALOR INVOICE US$ (Invoice > VMCV DUIMP)
+    cotacao: ValorOpt = None
 
     # Planilha de controle — colunas 1–8 (spec §1.3)
-    tx_di: Optional[float] = None            # campo 2 — taxa da DI/DUIMP
-    resultado_rs: Optional[float] = None     # campo 3 — 1×2, provisão do fornecedor
-    vlr_usd_pg_cambio: Optional[float] = None  # campo 4 — do contrato de câmbio (middleware)
-    tx_cambio: Optional[float] = None        # campo 5 — do contrato de câmbio (middleware)
-    vlr_pg_rs: Optional[float] = None        # campo 6 — 4×5
-    vlr_pg_x_tx_di: Optional[float] = None   # campo 7 — 4×2
-    variacao: Optional[float] = None         # campo 8 — variação cambial
+    tx_di: ValorOpt = None            # campo 2 — taxa da DI/DUIMP
+    resultado_rs: ValorOpt = None     # campo 3 — 1×2, provisão do fornecedor
+    vlr_usd_pg_cambio: ValorOpt = None  # campo 4 — do contrato de câmbio (middleware)
+    tx_cambio: ValorOpt = None        # campo 5 — do contrato de câmbio (middleware)
+    vlr_pg_rs: ValorOpt = None        # campo 6 — 4×5
+    vlr_pg_x_tx_di: ValorOpt = None   # campo 7 — 4×2
+    variacao: ValorOpt = None         # campo 8 — variação cambial
 
     # Reforma tributária (extraídos e reservados — regra de partida a confirmar)
-    cbs: Optional[float] = None
-    ibs_uf: Optional[float] = None
-    ibs_mun: Optional[float] = None
+    cbs: ValorOpt = None
+    ibs_uf: ValorOpt = None
+    ibs_mun: ValorOpt = None
     cclasstrib: Optional[str] = None
 
     # Valores
-    fob_rs: Optional[float] = None
-    frete_rs: Optional[float] = None
-    valor_aduaneiro_rs: Optional[float] = None
+    fob_rs: ValorOpt = None
+    frete_rs: ValorOpt = None
+    valor_aduaneiro_rs: ValorOpt = None
 
     # Tributos / despesas
-    ii: Optional[float] = None
-    ipi: Optional[float] = None
-    pis: Optional[float] = None
-    cofins: Optional[float] = None
-    siscomex: Optional[float] = None
-    afrmm: Optional[float] = None
-    icms: Optional[float] = None
-    armazenagem: Optional[float] = None
-    total_tributos: Optional[float] = None
+    ii: ValorOpt = None
+    ipi: ValorOpt = None
+    pis: ValorOpt = None
+    cofins: ValorOpt = None
+    siscomex: ValorOpt = None
+    afrmm: ValorOpt = None
+    icms: ValorOpt = None
+    armazenagem: ValorOpt = None
+    total_tributos: ValorOpt = None
 
     # Carga
-    peso_liquido: Optional[float] = None
-    volumes: Optional[float] = None
+    peso_liquido: ValorOpt = None
+    volumes: ValorOpt = None
     navio: Optional[str] = None
     bl: Optional[str] = None
     chegada: Optional[str] = None
@@ -138,8 +145,8 @@ class MiddlewareInput(BaseModel):
     classificacao_override: Dict[str, str] = Field(default_factory=dict)
 
     # Câmbio (campos 4–5; 6/7/8 são calculados) — do contrato de câmbio, ausente aqui
-    vlr_usd_pg_cambio: Optional[float] = None
-    tx_cambio: Optional[float] = None
+    vlr_usd_pg_cambio: ValorOpt = None
+    tx_cambio: ValorOpt = None
 
     # Reforma: "reservar" (default) ou "lancar" (quando a Larissa definir a regra)
     tratamento_cbs_ibs: str = "reservar"
