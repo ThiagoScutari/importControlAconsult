@@ -115,8 +115,13 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
         pais_origem=pega("pais_origem", [("DUIMP", g(duimp, "pais_procedencia"))]),
         pais_aquisicao=pega("pais_aquisicao", [("DUIMP", g(duimp, "pais_aquisicao"))]),
         invoice=pega("invoice", [("DUIMP", g(duimp, "fatura_numero")), ("DI", g(di, "fatura"))]),
-        invoice_usd=pega("invoice_usd", [("DUIMP", g(duimp, "fatura_valor_us"))]),
+        invoice_usd=pega("invoice_usd", [("DUIMP", g(duimp, "fatura_valor_us"))]),  # campo 1
         cotacao=pega("cotacao", [("DUIMP", g(duimp, "cotacao")), ("DI", g(di, "cotacao")), ("WIN", g(win, "cotacao"))]),
+        tx_di=pega("tx_di", [("DUIMP", g(duimp, "cotacao")), ("DI", g(di, "cotacao"))]),  # campo 2
+        cbs=pega("cbs", [("NF", g(nf, "cbs"))]),
+        ibs_uf=pega("ibs_uf", [("NF", g(nf, "ibs_uf"))]),
+        ibs_mun=pega("ibs_mun", [("NF", g(nf, "ibs_mun"))]),
+        cclasstrib=pega("cclasstrib", [("DUIMP", g(duimp, "cclasstrib"))]),
         fob_rs=pega("fob_rs", [("DUIMP", g(duimp, "fob_rs")), ("DI", g(di, "fob_rs")), ("WIN", g(win, "fob"))]),
         frete_rs=pega("frete_rs", [("DUIMP", g(duimp, "frete_rs")), ("DI", g(di, "frete_rs")), ("WIN", g(win, "frete"))]),
         valor_aduaneiro_rs=pega("valor_aduaneiro_rs", [("DUIMP", g(duimp, "valor_aduaneiro_rs")), ("DI", g(di, "valor_aduaneiro_rs")), ("WIN", g(win, "valor_aduaneiro"))]),
@@ -139,4 +144,10 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
         avisos=avisos,
         rastreamento=rastreamento,
     )
+
+    # Campo 3 (RESULTADO R$) = invoice US$ × TX DI — provisão do fornecedor
+    # (não é o valor da NF nem o aduaneiro; spec §1.3). Só quando ambos existem.
+    if p.invoice_usd is not None and p.tx_di is not None:
+        p.resultado_rs = round(p.invoice_usd * p.tx_di, 2)
+
     return p

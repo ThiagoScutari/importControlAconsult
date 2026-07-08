@@ -50,6 +50,17 @@ class TestConsolidacao:
         assert any(a.campo == "numero_nf" for a in proc.avisos)
 
 
+@pytest.fixture
+def proc_sy1453(textos):
+    from backend.extractors import duimp, fechamento_syndex
+    docs = [
+        duimp.extrair(textos["duimp_sy1453"]),
+        nota_fiscal.extrair(textos["nf_sy1453"]),
+        fechamento_syndex.extrair(textos["syndex_fechamento"]),
+    ]
+    return consolidar(docs)
+
+
 class TestSaidaA:
     def test_cabecalho_e_uma_linha(self, proc_1159):
         csv_txt = gerar_saida_a([proc_1159])
@@ -57,6 +68,22 @@ class TestSaidaA:
         assert linhas[0].split(";") == COLUNAS_A
         assert len(linhas) == 2  # cabeçalho + 1 processo
         assert "1159" in linhas[1]
+
+    def test_saida_a_v02_tem_colunas_novas(self, proc_sy1453):
+        # Layout v0.2: câmbio (1–8) + Reforma
+        for col in ["Resultado R$", "TX DI", "USD PG Câmbio", "Variação",
+                    "CBS", "IBS-UF", "IBS-MUN"]:
+            assert col in COLUNAS_A
+        csv_txt = gerar_saida_a([proc_sy1453])
+        assert csv_txt.splitlines()[0].split(";") == COLUNAS_A
+
+    def test_campos_reforma_e_resultado_sy1453(self, proc_sy1453):
+        # CBS/IBS vêm da NF; resultado_rs = invoice_usd × tx_di
+        assert proc_sy1453.cbs == pytest.approx(3018.30, abs=0.01)
+        assert proc_sy1453.ibs_uf == pytest.approx(273.57, abs=0.01)
+        assert proc_sy1453.tx_di == pytest.approx(5.28, abs=0.0001)
+        assert proc_sy1453.invoice_usd == pytest.approx(52403.08, abs=0.01)
+        assert proc_sy1453.resultado_rs == pytest.approx(276688.26, abs=0.01)
 
 
 class TestSaidaB:

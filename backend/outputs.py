@@ -48,13 +48,16 @@ def _writer(linhas: List[list]) -> str:
 # Saída A — extração estruturada
 # ---------------------------------------------------------------------------
 
+# Layout v0.2 (spec §6.1): inclui as colunas 1–8 da planilha de controle
+# (câmbio) e os campos da Reforma (CBS/IBS-UF/IBS-MUN).
 COLUNAS_A = [
     "Tipo Importação", "Data NF", "DI/DUIMP", "Nº NF", "Valor NF", "Processo",
     "Despachante", "Fornecedor Estrangeiro", "Fabricante", "País Origem",
-    "País Aquisição", "Invoice", "Invoice USD", "Cotação", "FOB R$", "Frete R$",
-    "Valor Aduaneiro R$", "II", "IPI", "PIS", "COFINS", "Siscomex", "AFRMM",
-    "ICMS", "Armazenagem", "Total Tributos", "Peso Líquido", "Volumes", "Navio",
-    "BL", "Chegada", "Chave NF-e",
+    "País Aquisição", "Invoice", "Invoice USD", "TX DI", "Resultado R$",
+    "USD PG Câmbio", "TX Câmbio", "VLR PG R$", "VLR PG × TX DI", "Variação",
+    "FOB R$", "Frete R$", "Valor Aduaneiro R$", "II", "IPI", "PIS", "COFINS",
+    "CBS", "IBS-UF", "IBS-MUN", "Siscomex", "AFRMM", "ICMS", "Armazenagem",
+    "Total Tributos", "Peso Líquido", "Volumes", "Navio", "BL", "Chave NF-e",
 ]
 
 
@@ -64,11 +67,15 @@ def _linha_a(p: ProcessoExtraido) -> list:
         fmt_br(p.valor_nf), p.processo or "", p.despachante or "",
         p.fornecedor_estrangeiro or "", p.fabricante or "", p.pais_origem or "",
         p.pais_aquisicao or "", p.invoice or "", fmt_br(p.invoice_usd),
-        fmt_br(p.cotacao, casas=4), fmt_br(p.fob_rs), fmt_br(p.frete_rs),
-        fmt_br(p.valor_aduaneiro_rs), fmt_br(p.ii), fmt_br(p.ipi), fmt_br(p.pis),
-        fmt_br(p.cofins), fmt_br(p.siscomex), fmt_br(p.afrmm), fmt_br(p.icms),
-        fmt_br(p.armazenagem), fmt_br(p.total_tributos), fmt_br(p.peso_liquido),
-        fmt_br(p.volumes), p.navio or "", p.bl or "", p.chegada or "", p.chave_nfe or "",
+        fmt_br(p.tx_di, casas=4), fmt_br(p.resultado_rs),
+        fmt_br(p.vlr_usd_pg_cambio), fmt_br(p.tx_cambio, casas=4), fmt_br(p.vlr_pg_rs),
+        fmt_br(p.vlr_pg_x_tx_di), fmt_br(p.variacao),
+        fmt_br(p.fob_rs), fmt_br(p.frete_rs), fmt_br(p.valor_aduaneiro_rs),
+        fmt_br(p.ii), fmt_br(p.ipi), fmt_br(p.pis), fmt_br(p.cofins),
+        fmt_br(p.cbs), fmt_br(p.ibs_uf), fmt_br(p.ibs_mun),
+        fmt_br(p.siscomex), fmt_br(p.afrmm), fmt_br(p.icms), fmt_br(p.armazenagem),
+        fmt_br(p.total_tributos), fmt_br(p.peso_liquido), fmt_br(p.volumes),
+        p.navio or "", p.bl or "", p.chave_nfe or "",
     ]
 
 
