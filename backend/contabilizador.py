@@ -200,3 +200,26 @@ def lotes_balanceiam(lancamentos: List[Lancamento]) -> bool:
         soma[l.lote][0] += l.valor  # debita o valor
         soma[l.lote][1] += l.valor  # credita o valor
     return all(abs(deb - cred) < 0.01 for deb, cred in soma.values())
+
+
+def validar_partidas(lancamentos: List[Lancamento]) -> List[Aviso]:
+    """Aponta partidas incompletas (conta em branco) e lotes desbalanceados.
+
+    Não bloqueia a geração — devolve Avisos para o operador completar. Um lote
+    com débito ou crédito sem código de conta não pode ir para o Domínio; hoje
+    isso vinha em branco e silencioso (bug 2).
+    """
+    avisos: List[Aviso] = []
+    lotes_incompletos: set = set()
+    for l in lancamentos:
+        if (not l.conta_debito or not l.conta_credito) and l.lote not in lotes_incompletos:
+            lotes_incompletos.add(l.lote)
+            avisos.append(Aviso(
+                tipo="ausente", campo=f"partida:passo{l.passo}",
+                mensagem=(f"Passo {l.passo}: partida incompleta (conta em branco) — "
+                          "complete o código da conta no middleware"),
+            ))
+    if lancamentos and not lotes_balanceiam(lancamentos):
+        avisos.append(Aviso(tipo="divergencia", campo="balanceamento",
+                            mensagem="Um lote não balanceia (Σ débitos ≠ Σ créditos)"))
+    return avisos

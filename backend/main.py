@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import zipfile
 from typing import List
 
@@ -11,7 +12,11 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from backend.consolidador import consolidar
-from backend.contabilizador import gerar_partidas, montar_nome_conta_processo
+from backend.contabilizador import (
+    gerar_partidas,
+    montar_nome_conta_processo,
+    validar_partidas,
+)
 from backend.depara import (
     CategoriaLinha,
     PapelConta,
@@ -113,6 +118,19 @@ def _sugestoes_middleware(processo) -> dict:
     }
 
 
+def _slug(ref: str | None) -> str:
+    """Referência do processo em slug seguro para nome de arquivo."""
+    return re.sub(r"\W+", "_", (ref or "sem_ref").strip()).strip("_") or "sem_ref"
+
+
+def _formatar_avisos(avisos) -> str:
+    """Texto legível dos Avisos para o AVISOS.txt do zip."""
+    linhas = ["AVISOS DA GERAÇÃO (confira/complete no middleware)", ""]
+    for a in avisos:
+        linhas.append(f"- [{a.tipo}] {a.campo}: {a.mensagem}")
+    return "\n".join(linhas) + "\n"
+
+
 @app.post("/generate")
 async def generate(req: GerarRequest):
     """Gera os arquivos A, B (e C, se marcado) e devolve em um .zip."""
@@ -127,14 +145,21 @@ async def generate(req: GerarRequest):
     # lançamentos prontos, respeita-os; senão, gera pelo algoritmo 1.5.
     lancamentos = middleware.lancamentos or gerar_partidas(processo, middleware)
 
+    # Bug 2: nunca deixar partida incompleta / lote desbalanceado passar em
+    # silêncio — sinaliza (sem bloquear) para o operador completar a conta.
+    processo.avisos.extend(validar_partidas(lancamentos))
+
+    ref = _slug(processo.processo)
     arquivos = {
-        "saida_A_extracao.csv": gerar_saida_a([processo]),
-        "saida_A_rastreavel.csv": gerar_saida_a_rastreavel([processo]),
-        "saida_B_lancamentos_dominio.csv": gerar_saida_b(lancamentos),
-        "saida_B_lancamentos_dominio.txt": gerar_saida_b(lancamentos),
+        f"{ref}_saida_A_extracao.csv": gerar_saida_a([processo]),
+        f"{ref}_saida_A_rastreavel.csv": gerar_saida_a_rastreavel([processo]),
+        f"{ref}_saida_B_lancamentos_dominio.csv": gerar_saida_b(lancamentos),
+        f"{ref}_saida_B_lancamentos_dominio.txt": gerar_saida_b(lancamentos),
     }
     if middleware.incluir_saida_c:
-        arquivos["saida_C_fornecedores.csv"] = gerar_saida_c([processo])
+        arquivos[f"{ref}_saida_C_fornecedores.csv"] = gerar_saida_c([processo])
+    if processo.avisos:
+        arquivos[f"{ref}_AVISOS.txt"] = _formatar_avisos(processo.avisos)
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -143,7 +168,7 @@ async def generate(req: GerarRequest):
             zf.writestr(nome, "﻿" + conteudo)
     buf.seek(0)
 
-    nome_zip = f"saidas_processo_{processo.processo or 'sem_ref'}.zip"
+    nome_zip = f"{ref}_saidas.zip"
     return Response(
         content=buf.getvalue(),
         media_type="application/zip",

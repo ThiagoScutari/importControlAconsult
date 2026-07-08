@@ -88,6 +88,12 @@ class TestMotorEstrutura:
         gerar_partidas(proc_sy1453, middleware)
         assert any("câmbio" in a.mensagem.lower() for a in proc_sy1453.avisos)
 
+    def test_papel_sem_codigo_gera_aviso(self, proc_sy1453):
+        # sem override: adiantamento_despachante não tem código no de-para
+        gerar_partidas(proc_sy1453, MiddlewareInput())
+        assert any("adiantamento_despachante" in a.campo or "adiantamento_despachante" in a.mensagem
+                   for a in proc_sy1453.avisos)
+
     def test_nome_conta_processo(self, proc_sy1453):
         nome = montar_nome_conta_processo(proc_sy1453)
         assert nome.startswith("PROCESSO")
