@@ -15,6 +15,8 @@ const CAMPOS_PROCESSO = [
   ["pais_aquisicao", "País Aquisição"],
   ["invoice", "Invoice"],
   ["invoice_usd", "Invoice USD"],
+  ["tx_di", "TX DI"],
+  ["resultado_rs", "Resultado R$ (provisão fornecedor)"],
   ["cotacao", "Cotação"],
   ["fob_rs", "FOB R$"],
   ["frete_rs", "Frete R$"],
@@ -23,6 +25,9 @@ const CAMPOS_PROCESSO = [
   ["ipi", "IPI"],
   ["pis", "PIS"],
   ["cofins", "COFINS"],
+  ["cbs", "CBS"],
+  ["ibs_uf", "IBS-UF"],
+  ["ibs_mun", "IBS-MUN"],
   ["siscomex", "Siscomex"],
   ["afrmm", "AFRMM"],
   ["icms", "ICMS"],
@@ -36,14 +41,27 @@ const CAMPOS_PROCESSO = [
   ["chave_nfe", "Chave NF-e"],
 ];
 
+// Campos do middleware: [chave, rótulo, tipo, opções?]
 const CAMPOS_MIDDLEWARE = [
-  ["tipo_importacao", "Tipo Importação", "select", ["Própria", "Conta e ordem", "Encomenda"]],
-  ["entidade_contabil", "Entidade Contábil", "text"],
+  ["conta_processo_nome", "Conta do Processo — nome", "text"],
+  ["conta_processo_numero", "Conta do Processo — número", "text"],
+  ["entidade_contabil", "Entidade Contábil (trading × adquirente)", "text"],
   ["data_lancamento", "Data Lançamento", "text"],
-  ["complemento_historico", "Complemento Histórico", "text"],
+  ["vlr_usd_pg_cambio", "Câmbio — USD pago (campo 4)", "text"],
+  ["tx_cambio", "Câmbio — taxa (campo 5)", "text"],
+  ["tratamento_cbs_ibs", "Tratamento CBS/IBS", "select", ["reservar", "lancar"]],
   ["inicia_lote", "Inicia Lote", "text"],
   ["matriz_filial", "Matriz/Filial", "text"],
 ];
+
+// Rótulos amigáveis das categorias de linha do fechamento.
+const CATEGORIA_LABEL = {
+  despesa_processo: "Despesa do processo (entra no lançamento)",
+  tributo_federal_na_nf: "Tributo federal (já na NF — não relança)",
+  icms_importacao: "ICMS importação (DARE/diferido)",
+  retencao: "Retenção (crédito)",
+  adiantamento: "Adiantamento (crédito)",
+};
 
 let estado = { processo: null, sugestoes: null, arquivos: [] };
 
@@ -120,29 +138,30 @@ async function extrair() {
 // ----- Conferência -----
 function renderConferencia(dados) {
   $("#passo-conferencia").classList.remove("hidden");
+  const sug = estado.sugestoes || {};
 
-  // Campos do processo
+  // Campos do processo (extraídos)
   const grid = $("#campos-processo");
   grid.innerHTML = "";
   CAMPOS_PROCESSO.forEach(([chave, rotulo]) => {
     grid.append(campoInput("proc__" + chave, rotulo, valorTexto(dados[chave])));
   });
 
-  // Middleware
+  // Middleware (campos a completar)
   const mid = $("#campos-middleware");
   mid.innerHTML = "";
-  const sug = estado.sugestoes || {};
   CAMPOS_MIDDLEWARE.forEach(([chave, rotulo, tipo, opcoes]) => {
     let valor = "";
-    if (chave === "tipo_importacao") valor = sug.tipo_importacao || dados.tipo_importacao || "";
+    if (chave === "conta_processo_nome") valor = sug.conta_processo_nome || "";
     if (chave === "data_lancamento") valor = sug.data_lancamento || dados.data_nf || "";
-    if (chave === "complemento_historico") valor = complementoPadrao(dados);
+    if (chave === "tratamento_cbs_ibs") valor = "reservar";
     if (tipo === "select") mid.append(campoSelect("mid__" + chave, rotulo, opcoes, valor));
     else mid.append(campoInput("mid__" + chave, rotulo, valor));
   });
 
+  renderContas(sug.papeis || {});
+  renderClassificacao(sug.despesas || []);
   renderAvisos(dados.avisos, dados.nao_reconhecidos);
-  renderLancamentos(sug.despesas || [], dados);
 
   $("#passo-conferencia").scrollIntoView({ behavior: "smooth" });
 }
@@ -155,7 +174,7 @@ function campoInput(id, rotulo, valor) {
 }
 function campoSelect(id, rotulo, opcoes, valor) {
   const sel = el("select", { id });
-  opcoes.forEach((o) => {
+  (opcoes || []).forEach((o) => {
     const opt = el("option", { value: o }, o);
     if (o === valor) opt.selected = true;
     sel.append(opt);
@@ -163,17 +182,46 @@ function campoSelect(id, rotulo, opcoes, valor) {
   return el("div", { class: "campo" }, el("label", { for: id }, rotulo), sel);
 }
 
+// Plano de contas (papel -> código), editável -> contas_override
+function renderContas(papeis) {
+  const tbody = $("#tabela-contas tbody");
+  tbody.innerHTML = "";
+  const chaves = Object.keys(papeis);
+  chaves.forEach((papel) => {
+    const tr = el("tr");
+    tr.append(el("td", {}, papel));
+    tr.append(el("td", {}, el("input", { id: "conta__" + papel, type: "text", value: papeis[papel] || "" })));
+    tbody.append(tr);
+  });
+  tbody.dataset.papeis = JSON.stringify(chaves);
+}
+
+// Classificação das linhas do fechamento (dropdown por linha) -> classificacao_override
+function renderClassificacao(despesas) {
+  const tbody = $("#tabela-classificacao tbody");
+  tbody.innerHTML = "";
+  const cats = Object.keys(CATEGORIA_LABEL);
+  despesas.forEach((d, i) => {
+    const tr = el("tr");
+    tr.append(el("td", {}, el("input", { id: `cls__${i}__desc`, type: "text", value: d.descricao || "" })));
+    tr.append(el("td", {}, valorTexto(d.valor)));
+    const sel = el("select", { id: `cls__${i}__cat` });
+    cats.forEach((c) => {
+      const opt = el("option", { value: c }, CATEGORIA_LABEL[c]);
+      if (c === d.categoria) opt.selected = true;
+      sel.append(opt);
+    });
+    // realce visual do que entra no lançamento
+    sel.classList.add("cat-" + (d.categoria || ""));
+    tr.append(el("td", {}, sel));
+    tbody.append(tr);
+  });
+  tbody.dataset.linhas = despesas.length;
+}
+
 function valorTexto(v) {
   if (v === null || v === undefined) return "";
   return String(v);
-}
-
-function complementoPadrao(d) {
-  const partes = [];
-  if (d.processo) partes.push("PROCESSO " + d.processo);
-  if (d.di_duimp) partes.push("DI/DUIMP " + d.di_duimp);
-  if (d.numero_nf) partes.push("NF " + d.numero_nf);
-  return partes.join(" ");
 }
 
 function renderAvisos(avisos, naoReconhecidos) {
@@ -190,30 +238,24 @@ function renderAvisos(avisos, naoReconhecidos) {
   box.append(ul);
 }
 
-function renderLancamentos(despesas, dados) {
-  const tbody = $("#tabela-lancamentos tbody");
-  tbody.innerHTML = "";
-  const linhas = despesas.length
-    ? despesas
-    : [{ descricao: "(sem fechamento) Valor da NF", valor: dados.valor_nf, conta_debito: "", conta_credito: "", cod_historico: "" }];
-  linhas.forEach((d, i) => {
-    const tr = el("tr");
-    tr.append(tdInput(`lc__${i}__descricao`, d.descricao || ""));
-    tr.append(tdInput(`lc__${i}__valor`, valorTexto(d.valor)));
-    tr.append(tdInput(`lc__${i}__conta_debito`, d.conta_debito || ""));
-    tr.append(tdInput(`lc__${i}__conta_credito`, d.conta_credito || ""));
-    tr.append(tdInput(`lc__${i}__cod_historico`, d.cod_historico || ""));
-    tbody.append(tr);
-  });
-  tbody.dataset.linhas = linhas.length;
-}
-function tdInput(id, valor) {
-  return el("td", {}, el("input", { id, type: "text", value: valor }));
-}
-
 // ----- Gerar -----
 $("#btn-gerar").addEventListener("click", gerar);
 $("#btn-recomecar").addEventListener("click", () => location.reload());
+
+const NUMERICOS = new Set(["valor_nf", "invoice_usd", "tx_di", "resultado_rs", "cotacao",
+  "fob_rs", "frete_rs", "valor_aduaneiro_rs", "ii", "ipi", "pis", "cofins", "cbs",
+  "ibs_uf", "ibs_mun", "siscomex", "afrmm", "icms", "armazenagem", "total_tributos",
+  "peso_liquido", "volumes"]);
+
+function numeroBR(valor) {
+  if (valor === "" || valor == null) return null;
+  const n = parseFloat(String(valor).replace(/\./g, "").replace(",", "."));
+  return isNaN(n) ? null : n;
+}
+function converteNumero(chave, valor) {
+  if (!NUMERICOS.has(chave)) return valor === "" ? null : valor;
+  return numeroBR(valor);
+}
 
 function coletarProcesso() {
   const p = Object.assign({}, estado.processo);
@@ -224,50 +266,33 @@ function coletarProcesso() {
   return p;
 }
 
-const NUMERICOS = new Set(["valor_nf", "invoice_usd", "cotacao", "fob_rs", "frete_rs",
-  "valor_aduaneiro_rs", "ii", "ipi", "pis", "cofins", "siscomex", "afrmm", "icms",
-  "armazenagem", "total_tributos", "peso_liquido", "volumes"]);
-
-function converteNumero(chave, valor) {
-  if (!NUMERICOS.has(chave)) return valor === "" ? null : valor;
-  if (valor === "" || valor == null) return null;
-  // aceita formato BR ou US
-  const n = parseFloat(String(valor).replace(/\./g, "").replace(",", "."));
-  return isNaN(n) ? null : n;
-}
-
 function coletarMiddleware() {
-  const m = {};
+  const m = { contas_override: {}, classificacao_override: {}, lancamentos: [] };
+
   CAMPOS_MIDDLEWARE.forEach(([chave]) => {
     const inp = $("#mid__" + chave);
-    if (inp) m[chave] = inp.value || null;
+    if (!inp) return;
+    if (chave === "vlr_usd_pg_cambio" || chave === "tx_cambio") m[chave] = numeroBR(inp.value);
+    else m[chave] = inp.value || null;
   });
-  m.incluir_saida_c = $("#incluir-c").checked;
-  m.lancamentos = coletarLancamentos(m);
-  return m;
-}
 
-function coletarLancamentos(m) {
-  const tbody = $("#tabela-lancamentos tbody");
-  const n = parseInt(tbody.dataset.linhas || "0", 10);
-  const out = [];
+  // Plano de contas (papel -> código)
+  const papeis = JSON.parse($("#tabela-contas tbody").dataset.papeis || "[]");
+  papeis.forEach((papel) => {
+    const v = $("#conta__" + papel);
+    if (v && v.value.trim()) m.contas_override[papel] = v.value.trim();
+  });
+
+  // Classificação por linha (descrição -> categoria)
+  const n = parseInt($("#tabela-classificacao tbody").dataset.linhas || "0", 10);
   for (let i = 0; i < n; i++) {
-    const valorTxt = $(`#lc__${i}__valor`).value;
-    const valor = parseFloat(String(valorTxt).replace(/\./g, "").replace(",", ".")) || 0;
-    out.push({
-      data: m.data_lancamento || "",
-      conta_debito: $(`#lc__${i}__conta_debito`).value || "",
-      conta_credito: $(`#lc__${i}__conta_credito`).value || "",
-      valor: valor,
-      cod_historico: $(`#lc__${i}__cod_historico`).value || "",
-      complemento_historico: `${m.complemento_historico || ""} - ${$(`#lc__${i}__descricao`).value}`.replace(/^ - /, ""),
-      inicia_lote: m.inicia_lote || "",
-      matriz_filial: m.matriz_filial || "",
-      cc_debito: "",
-      cc_credito: "",
-    });
+    const desc = $(`#cls__${i}__desc`).value;
+    const cat = $(`#cls__${i}__cat`).value;
+    if (desc) m.classificacao_override[desc] = cat;
   }
-  return out;
+
+  m.incluir_saida_c = $("#incluir-c").checked;
+  return m;
 }
 
 async function gerar() {
@@ -285,7 +310,7 @@ async function gerar() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `saidas_processo_${coletarProcesso().processo || "sem_ref"}.zip`;
+    a.download = `saidas_processo_${(coletarProcesso().processo || "sem_ref").replace(/\W+/g, "_")}.zip`;
     document.body.append(a);
     a.click();
     a.remove();

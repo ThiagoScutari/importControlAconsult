@@ -31,22 +31,26 @@
 
       <div id="avisos" class="avisos hidden"></div>
 
-      <h3>Dados extraídos (editáveis)</h3>
+      <h3>Dados extraídos do POP <small>(editáveis)</small></h3>
       <div id="campos-processo" class="grid"></div>
 
-      <h3>Middleware (preenchido pelo operador)</h3>
-      <div id="campos-middleware" class="grid"></div>
+      <!-- Bloco Middleware: a estrela da demo -->
+      <div class="mw-bloco">
+        <h3>Campos a completar <small>— regra de negócio / plano de contas</small></h3>
+        <div id="campos-middleware" class="grid"></div>
 
-      <h3>Lançamentos Domínio (Saída B) — pré-preenchidos pelo de-para</h3>
-      <table id="tabela-lancamentos" class="tabela">
-        <thead>
-          <tr>
-            <th>Descrição / Histórico</th><th>Valor</th>
-            <th>Conta Débito</th><th>Conta Crédito</th><th>Cód. Hist.</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+        <h4>Plano de contas do processo <small>(papel contábil → código — sobrepõe o de-para)</small></h4>
+        <table id="tabela-contas" class="tabela">
+          <thead><tr><th>Papel contábil</th><th>Código da conta</th></tr></thead>
+          <tbody></tbody>
+        </table>
+
+        <h4>Classificação das linhas do fechamento <small>(define o que entra no lançamento — guard anti-duplicidade)</small></h4>
+        <table id="tabela-classificacao" class="tabela">
+          <thead><tr><th>Despesa do fechamento</th><th>Valor</th><th>Categoria</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
 
       <label class="check"><input type="checkbox" id="incluir-c" /> Incluir Saída C (cadastro de fornecedor)</label>
 
@@ -59,7 +63,7 @@
   </main>
 
   <footer>
-    <small>Extração crua (sem conciliação/câmbio) · Fechamentos: TERRA e WIN · Aconsult</small>
+    <small>Extração crua (sem conciliação) · Fechamentos: TERRA, WIN, SYNDEX · CBS/IBS reservados · Aconsult</small>
   </footer>
 
   <script src="/static/app.js"></script>

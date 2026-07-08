@@ -87,4 +87,22 @@ main { max-width: 980px; margin: 24px auto; padding: 0 16px; }
 
 .check { display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; font-size: 14px; }
 
+/* Bloco Middleware — destacado (estrela da demo) */
+.mw-bloco {
+  margin: 22px 0; padding: 4px 18px 18px; border: 1px solid var(--azul);
+  border-radius: 10px; background: var(--azul-claro);
+}
+.mw-bloco h3 { color: var(--azul); }
+.mw-bloco h4 { font-size: 13px; color: var(--azul); margin: 18px 0 8px; }
+.card h3 small, .mw-bloco h4 small { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--cinza); }
+.mw-bloco .tabela th { background: #fff; }
+.mw-bloco .tabela td, .mw-bloco .tabela th { background: #fff; }
+.tabela select { width: 100%; border: 1px solid var(--borda); border-radius: 6px; padding: 4px; font-size: 12px; }
+
+/* Realce da categoria: verde = entra no lançamento; cinza = não relança */
+select.cat-despesa_processo { background: #ecfdf5; border-color: var(--verde); color: var(--verde); }
+select.cat-tributo_federal_na_nf { background: #f3f4f6; color: var(--cinza); }
+select.cat-icms_importacao { background: #fef9c3; }
+select.cat-retencao, select.cat-adiantamento { background: #eff6ff; }
+
 footer { text-align: center; color: var(--cinza); padding: 20px; }
