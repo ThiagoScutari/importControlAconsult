@@ -6,10 +6,31 @@ from backend.extractors import duimp, di, nota_fiscal, fechamento_terra
 from backend.models import Lancamento, MiddlewareInput
 from backend.outputs import (
     COLUNAS_A,
+    fmt_br,
+    fmt_dominio,
     gerar_lancamentos_sugeridos,
     gerar_saida_a,
     gerar_saida_b,
 )
+
+
+class TestFormatacao:
+    def test_fmt_dominio(self):
+        assert fmt_dominio(276688.26) == "276688,26"
+        assert fmt_dominio(5.28) == "5,28"
+        assert fmt_dominio(382358.58) == "382358,58"
+
+    def test_fmt_br(self):
+        assert fmt_br(382358.58) == "382.358,58"
+        assert fmt_br(276688.26) == "276.688,26"
+        assert fmt_br(5.28, casas=4) == "5,2800"
+
+    def test_lancamento_valor_coage_na_fronteira(self):
+        # Lancamento.valor usa a mesma coerção de fronteira (não parse_valor_br)
+        assert Lancamento(valor="382358.58").valor == 382358.58   # ponto do JS
+        assert Lancamento(valor="382.358,58").valor == 382358.58  # edição BR
+        assert Lancamento(valor=5.28).valor == 5.28
+        assert Lancamento(valor=None).valor == 0.0
 
 
 @pytest.fixture
@@ -50,6 +71,17 @@ class TestConsolidacao:
         assert any(a.campo == "numero_nf" for a in proc.avisos)
 
 
+@pytest.fixture
+def proc_sy1453(textos):
+    from backend.extractors import duimp, fechamento_syndex
+    docs = [
+        duimp.extrair(textos["duimp_sy1453"]),
+        nota_fiscal.extrair(textos["nf_sy1453"]),
+        fechamento_syndex.extrair(textos["syndex_fechamento"]),
+    ]
+    return consolidar(docs)
+
+
 class TestSaidaA:
     def test_cabecalho_e_uma_linha(self, proc_1159):
         csv_txt = gerar_saida_a([proc_1159])
@@ -57,6 +89,22 @@ class TestSaidaA:
         assert linhas[0].split(";") == COLUNAS_A
         assert len(linhas) == 2  # cabeçalho + 1 processo
         assert "1159" in linhas[1]
+
+    def test_saida_a_v02_tem_colunas_novas(self, proc_sy1453):
+        # Layout v0.2: câmbio (1–8) + Reforma
+        for col in ["Resultado R$", "TX DI", "USD PG Câmbio", "Variação",
+                    "CBS", "IBS-UF", "IBS-MUN"]:
+            assert col in COLUNAS_A
+        csv_txt = gerar_saida_a([proc_sy1453])
+        assert csv_txt.splitlines()[0].split(";") == COLUNAS_A
+
+    def test_campos_reforma_e_resultado_sy1453(self, proc_sy1453):
+        # CBS/IBS vêm da NF; resultado_rs = invoice_usd × tx_di
+        assert proc_sy1453.cbs == pytest.approx(3018.30, abs=0.01)
+        assert proc_sy1453.ibs_uf == pytest.approx(273.57, abs=0.01)
+        assert proc_sy1453.tx_di == pytest.approx(5.28, abs=0.0001)
+        assert proc_sy1453.invoice_usd == pytest.approx(52403.08, abs=0.01)
+        assert proc_sy1453.resultado_rs == pytest.approx(276688.26, abs=0.01)
 
 
 class TestSaidaB:

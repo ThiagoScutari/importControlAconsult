@@ -6,9 +6,25 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
+
+from backend.pdf_utils import coerta_valor
+
+# Tipo de valor numérico na fronteira: aceita float (extração) OU string do
+# formulário (round-trip), coagindo com segurança — sem tratar ponto como milhar
+# indevidamente. É o único ponto de parse de número vindo da requisição.
+ValorOpt = Annotated[Optional[float], BeforeValidator(coerta_valor)]
+
+
+def _valor_ou_zero(v) -> float:
+    """Coação de valor obrigatório (partida): mesma regra do ValorOpt, default 0."""
+    return coerta_valor(v) or 0.0
+
+
+# Valor não-opcional (ex.: Lancamento.valor) coagido pela mesma regra de fronteira.
+ValorReq = Annotated[float, BeforeValidator(_valor_ou_zero)]
 
 
 class Aviso(BaseModel):
@@ -29,7 +45,7 @@ class ProcessoExtraido(BaseModel):
     di_duimp: Optional[str] = None
     data_nf: Optional[str] = None
     numero_nf: Optional[str] = None
-    valor_nf: Optional[float] = None
+    valor_nf: ValorOpt = None
     chave_nfe: Optional[str] = None
 
     # Partes
@@ -45,28 +61,43 @@ class ProcessoExtraido(BaseModel):
 
     # Invoice / câmbio
     invoice: Optional[str] = None
-    invoice_usd: Optional[float] = None
-    cotacao: Optional[float] = None
+    invoice_usd: ValorOpt = None  # campo 1 — VALOR INVOICE US$ (Invoice > VMCV DUIMP)
+    cotacao: ValorOpt = None
+
+    # Planilha de controle — colunas 1–8 (spec §1.3)
+    tx_di: ValorOpt = None            # campo 2 — taxa da DI/DUIMP
+    resultado_rs: ValorOpt = None     # campo 3 — 1×2, provisão do fornecedor
+    vlr_usd_pg_cambio: ValorOpt = None  # campo 4 — do contrato de câmbio (middleware)
+    tx_cambio: ValorOpt = None        # campo 5 — do contrato de câmbio (middleware)
+    vlr_pg_rs: ValorOpt = None        # campo 6 — 4×5
+    vlr_pg_x_tx_di: ValorOpt = None   # campo 7 — 4×2
+    variacao: ValorOpt = None         # campo 8 — variação cambial
+
+    # Reforma tributária (extraídos e reservados — regra de partida a confirmar)
+    cbs: ValorOpt = None
+    ibs_uf: ValorOpt = None
+    ibs_mun: ValorOpt = None
+    cclasstrib: Optional[str] = None
 
     # Valores
-    fob_rs: Optional[float] = None
-    frete_rs: Optional[float] = None
-    valor_aduaneiro_rs: Optional[float] = None
+    fob_rs: ValorOpt = None
+    frete_rs: ValorOpt = None
+    valor_aduaneiro_rs: ValorOpt = None
 
     # Tributos / despesas
-    ii: Optional[float] = None
-    ipi: Optional[float] = None
-    pis: Optional[float] = None
-    cofins: Optional[float] = None
-    siscomex: Optional[float] = None
-    afrmm: Optional[float] = None
-    icms: Optional[float] = None
-    armazenagem: Optional[float] = None
-    total_tributos: Optional[float] = None
+    ii: ValorOpt = None
+    ipi: ValorOpt = None
+    pis: ValorOpt = None
+    cofins: ValorOpt = None
+    siscomex: ValorOpt = None
+    afrmm: ValorOpt = None
+    icms: ValorOpt = None
+    armazenagem: ValorOpt = None
+    total_tributos: ValorOpt = None
 
     # Carga
-    peso_liquido: Optional[float] = None
-    volumes: Optional[float] = None
+    peso_liquido: ValorOpt = None
+    volumes: ValorOpt = None
     navio: Optional[str] = None
     bl: Optional[str] = None
     chegada: Optional[str] = None
@@ -79,25 +110,57 @@ class ProcessoExtraido(BaseModel):
 
 
 class Lancamento(BaseModel):
-    """Uma partida do layout Domínio (Saída B) — 10 colunas."""
+    """Uma partida do layout Domínio (Saída B) — 10 colunas.
+
+    ``lote`` e ``passo`` são metadados internos (não vão para o CSV): ``lote``
+    agrupa as partidas de um mesmo lançamento (ex.: os vários débitos do Passo
+    6.2) para checar o balanceamento; ``passo`` documenta a origem no POP.
+    """
 
     data: str = ""
     conta_debito: str = ""
     conta_credito: str = ""
-    valor: float = 0.0
+    valor: ValorReq = 0.0  # coagido na fronteira (aceita float, "382358.58" ou "382.358,58")
     cod_historico: str = ""
     complemento_historico: str = ""
     inicia_lote: str = ""
     matriz_filial: str = ""
     cc_debito: str = ""
     cc_credito: str = ""
+    # metadados internos (fora das 10 colunas do CSV)
+    lote: int = 0
+    passo: str = ""
 
 
 class MiddlewareInput(BaseModel):
-    """Campos confirmados/preenchidos pelo operador antes de gerar."""
+    """Campos confirmados/preenchidos pelo operador antes de gerar.
+
+    Tudo aqui é *regra de negócio / plano de contas* que não sai dos documentos
+    (spec §5). Os defaults do de-para pré-preenchem; o operador ajusta.
+    """
 
     tipo_importacao: Optional[str] = None
     entidade_contabil: Optional[str] = None
+
+    # Conta do processo (nome gerado pela regra §1.4; número informado)
+    conta_processo_nome: Optional[str] = None
+    conta_processo_numero: Optional[str] = None
+
+    # Papel-de-conta → código (sobrepõe PLANO_CONTAS_PADRAO) e histórico por papel
+    contas_override: Dict[str, str] = Field(default_factory=dict)
+    historicos_override: Dict[str, str] = Field(default_factory=dict)
+
+    # Classificação das linhas do fechamento (descrição → categoria) — guard §3
+    classificacao_override: Dict[str, str] = Field(default_factory=dict)
+
+    # Câmbio (campos 4–5; 6/7/8 são calculados) — do contrato de câmbio, ausente aqui
+    vlr_usd_pg_cambio: ValorOpt = None
+    tx_cambio: ValorOpt = None
+
+    # Reforma: "reservar" (default) ou "lancar" (quando a Larissa definir a regra)
+    tratamento_cbs_ibs: str = "reservar"
+
+    # Campos legados do fluxo TERRA/WIN (conta única) — mantidos por compat.
     conta_debito: Optional[str] = None
     conta_credito: Optional[str] = None
     cod_historico: Optional[str] = None

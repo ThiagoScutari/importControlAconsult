@@ -1,7 +1,9 @@
 """Testes dos extratores contra os valores esperados do Anexo A (seção 9)."""
 import pytest
 
-from backend.extractors import duimp, di, nota_fiscal, fechamento_terra, fechamento_win
+from backend.extractors import (
+    duimp, di, nota_fiscal, fechamento_terra, fechamento_win, fechamento_syndex,
+)
 
 
 def approx(v):
@@ -58,6 +60,43 @@ class TestDuimp1159:
         assert d["peso_liquido"] == approx(16188.48)
         assert "HONGKONG YESOP" in d["exportador"]
         assert "SHANGHAI YESOP" in d["fabricante"]
+
+
+# ---------------------------------------------------------------------------
+# DUIMP SY1453 (layout VMCV) — não pode quebrar o layout 1159
+# ---------------------------------------------------------------------------
+class TestDuimpSY1453:
+    @pytest.fixture(scope="class")
+    def d(self, textos):
+        return duimp.extrair(textos["duimp_sy1453"])
+
+    def test_identificacao(self, d):
+        assert d["numero"] == "26BR0000258971-1"
+        assert d["versao"] == "0001"
+        assert d["importador_cnpj"] == "53.203.621/0001-39"
+        assert "ENCATEX" in d["importador_nome"]
+        assert d["tipo_importacao"] == "Importação Direta"
+        assert d["referencia"] == "SY1453/26"
+
+    def test_valores_vmcv_e_cotacao(self, d):
+        assert d["cotacao"] == approx(5.28)
+        assert d["vmcv_usd"] == approx(52403.08)
+        assert d["vmcv_reais"] == approx(276688.29)
+        assert d["valor_aduaneiro_rs"] == approx(282232.29)
+
+    def test_tributos(self, d):
+        assert d["ii"] == approx(42114.64)
+        assert d["ipi"] == approx(10873.77)
+        assert d["pis"] == approx(6141.72)
+        assert d["cofins"] == approx(29977.44)
+        assert d["siscomex"] == approx(154.23)
+
+    def test_reforma_e_itens(self, d):
+        assert d["cclasstrib"] == "000001"
+        assert d["ncm"] == "5907.0000"
+        assert d["num_itens"] == 6
+        # DUIMP não imprime CBS/IBS em valor (só cClassTrib)
+        assert d["cbs"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -219,9 +258,76 @@ class TestFechamentoWin:
 
 
 # ---------------------------------------------------------------------------
+# NF de Importação SY1453 — Reforma Tributária (CBS/IBS na NF, não na DUIMP)
+# ---------------------------------------------------------------------------
+class TestNotaFiscalSY1453:
+    @pytest.fixture(scope="class")
+    def d(self, textos):
+        return nota_fiscal.extrair(textos["nf_sy1453"])
+
+    def test_identificacao(self, d):
+        assert d["numero"] == "000.002.411"
+        assert d["serie"] == "001"
+        assert d["cfop"] == "3102"  # importação direta
+        assert d["chave"] == "42260353203621000139550010000024111153675423"
+
+    def test_valores(self, d):
+        assert d["valor_produtos"] == approx(292461.18)
+        assert d["valor_total"] == approx(382358.58)
+
+    def test_reforma(self, d):
+        assert d["cbs"] == approx(3018.30)   # "R$ 3.018,3" (1 casa)
+        assert d["ibs_uf"] == approx(273.57)
+        assert d["ibs_mun"] == approx(0.00)
+
+
+# ---------------------------------------------------------------------------
+# Fechamento SYNDEX (SY1453)
+# ---------------------------------------------------------------------------
+class TestFechamentoSyndex:
+    @pytest.fixture(scope="class")
+    def d(self, textos):
+        return fechamento_syndex.extrair(textos["syndex_fechamento"])
+
+    def test_identificacao(self, d):
+        assert d["subtipo"] == "fechamento"
+        assert d["cnpj"] == "02.286.106/0002-00"
+        assert "SYNDEX" in d["despachante"]
+        assert d["referencia"] == "SY1453/26"
+
+    def test_totais_e_saldo(self, d):
+        assert d["total_debitos"] == approx(103736.87)
+        assert d["total_creditos"] == approx(103834.93)
+        assert d["saldo"] == approx(98.06)
+
+    def test_despesas_e_bancarios(self, d):
+        assert len(d["despesas"]) >= 11
+        mapa = {x["descricao"]: x["valor"] for x in d["despesas"]}
+        assert mapa["IMPOSTO DE IMPORTAÇÃO"] == approx(42114.64)
+        assert mapa["ARMAZENAGEM"] == approx(7352.40)
+        assert mapa["AFRMM - MARINHA MERCANTE"] == approx(635.58)
+        assert d["banco"] == "SANTANDER"
+        assert d["agencia"] == "3159"
+        assert d["conta"] == "13005676-6"
+
+    def test_creditos_incluem_adiantamento(self, d):
+        descr = [c["descricao"] for c in d["creditos"]]
+        assert any("ADIANTAMENTO" in x for x in descr)
+
+
+class TestNumerarioSyndex:
+    def test_subtipo_numerario(self, textos):
+        d = fechamento_syndex.extrair(textos["syndex_numerario"])
+        assert d["subtipo"] == "numerario"
+        assert d["total_debitos"] == approx(101645.23)
+
+
+# ---------------------------------------------------------------------------
 # Tolerância: documento vazio/irreconhecível não deve quebrar
 # ---------------------------------------------------------------------------
-@pytest.mark.parametrize("mod", [duimp, di, nota_fiscal, fechamento_terra, fechamento_win])
+@pytest.mark.parametrize(
+    "mod", [duimp, di, nota_fiscal, fechamento_terra, fechamento_win, fechamento_syndex]
+)
 def test_extrator_tolera_texto_vazio(mod):
     resultado = mod.extrair("")
     assert isinstance(resultado, dict)

@@ -49,6 +49,8 @@ def parse_valor_br(texto: Optional[str]) -> Optional[float]:
     Regras:
     - ``.`` é separador de milhar, ``,`` é separador decimal.
     - Tolera prefixos como ``R$`` e espaços.
+    - Decimal de 1 dígito é aceito (``"3.018,3"`` -> ``3018.3 == 3018.30``),
+      caso real do CBS na NF-e SY1453.
     - String vazia / ``None`` / sem dígitos -> ``None`` (campo não encontrado).
     """
     if texto is None:
@@ -68,6 +70,34 @@ def parse_valor_br(texto: Optional[str]) -> Optional[float]:
         normalizado = bruto.replace(".", "")
     try:
         return float(normalizado)
+    except ValueError:
+        return None
+
+
+def coerta_valor(v) -> Optional[float]:
+    """Coage um valor da **fronteira front↔back** para ``float`` com segurança.
+
+    Diferente de :func:`parse_valor_br` (que é SÓ para texto bruto de PDF, onde
+    ``.`` é milhar), aqui um ``.`` só é milhar quando há ``,`` decimal. Assim:
+    - ``382358.58`` (float do JS, ponto decimal) -> ``382358.58`` (não vira 38 mi);
+    - ``"382.358,58"`` (edição manual BR) -> ``382358.58``;
+    - ``382358.58`` (float) / ``965`` (int) -> inalterado.
+
+    Regra invariante: NUNCA aplicar ``parse_valor_br`` a um valor que já nasceu
+    número ou que fez round-trip pelo formulário.
+    """
+    if v is None or v == "":
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    s = str(v).strip().replace("R$", "").strip()
+    if not s:
+        return None
+    if "," in s:                       # BR: ponto = milhar, vírgula = decimal
+        s = s.replace(".", "").replace(",", ".")
+    # senão: ponto é decimal (float do JS) — não remover
+    try:
+        return float(s)
     except ValueError:
         return None
 
