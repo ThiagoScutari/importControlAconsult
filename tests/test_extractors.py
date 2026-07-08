@@ -61,6 +61,43 @@ class TestDuimp1159:
 
 
 # ---------------------------------------------------------------------------
+# DUIMP SY1453 (layout VMCV) — não pode quebrar o layout 1159
+# ---------------------------------------------------------------------------
+class TestDuimpSY1453:
+    @pytest.fixture(scope="class")
+    def d(self, textos):
+        return duimp.extrair(textos["duimp_sy1453"])
+
+    def test_identificacao(self, d):
+        assert d["numero"] == "26BR0000258971-1"
+        assert d["versao"] == "0001"
+        assert d["importador_cnpj"] == "53.203.621/0001-39"
+        assert "ENCATEX" in d["importador_nome"]
+        assert d["tipo_importacao"] == "Importação Direta"
+        assert d["referencia"] == "SY1453/26"
+
+    def test_valores_vmcv_e_cotacao(self, d):
+        assert d["cotacao"] == approx(5.28)
+        assert d["vmcv_usd"] == approx(52403.08)
+        assert d["vmcv_reais"] == approx(276688.29)
+        assert d["valor_aduaneiro_rs"] == approx(282232.29)
+
+    def test_tributos(self, d):
+        assert d["ii"] == approx(42114.64)
+        assert d["ipi"] == approx(10873.77)
+        assert d["pis"] == approx(6141.72)
+        assert d["cofins"] == approx(29977.44)
+        assert d["siscomex"] == approx(154.23)
+
+    def test_reforma_e_itens(self, d):
+        assert d["cclasstrib"] == "000001"
+        assert d["ncm"] == "5907.0000"
+        assert d["num_itens"] == 6
+        # DUIMP não imprime CBS/IBS em valor (só cClassTrib)
+        assert d["cbs"] is None
+
+
+# ---------------------------------------------------------------------------
 # NF de Importação 1159
 # ---------------------------------------------------------------------------
 class TestNotaFiscal1159:
