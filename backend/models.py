@@ -45,8 +45,23 @@ class ProcessoExtraido(BaseModel):
 
     # Invoice / câmbio
     invoice: Optional[str] = None
-    invoice_usd: Optional[float] = None
+    invoice_usd: Optional[float] = None  # campo 1 — VALOR INVOICE US$ (Invoice > VMCV DUIMP)
     cotacao: Optional[float] = None
+
+    # Planilha de controle — colunas 1–8 (spec §1.3)
+    tx_di: Optional[float] = None            # campo 2 — taxa da DI/DUIMP
+    resultado_rs: Optional[float] = None     # campo 3 — 1×2, provisão do fornecedor
+    vlr_usd_pg_cambio: Optional[float] = None  # campo 4 — do contrato de câmbio (middleware)
+    tx_cambio: Optional[float] = None        # campo 5 — do contrato de câmbio (middleware)
+    vlr_pg_rs: Optional[float] = None        # campo 6 — 4×5
+    vlr_pg_x_tx_di: Optional[float] = None   # campo 7 — 4×2
+    variacao: Optional[float] = None         # campo 8 — variação cambial
+
+    # Reforma tributária (extraídos e reservados — regra de partida a confirmar)
+    cbs: Optional[float] = None
+    ibs_uf: Optional[float] = None
+    ibs_mun: Optional[float] = None
+    cclasstrib: Optional[str] = None
 
     # Valores
     fob_rs: Optional[float] = None
@@ -79,7 +94,12 @@ class ProcessoExtraido(BaseModel):
 
 
 class Lancamento(BaseModel):
-    """Uma partida do layout Domínio (Saída B) — 10 colunas."""
+    """Uma partida do layout Domínio (Saída B) — 10 colunas.
+
+    ``lote`` e ``passo`` são metadados internos (não vão para o CSV): ``lote``
+    agrupa as partidas de um mesmo lançamento (ex.: os vários débitos do Passo
+    6.2) para checar o balanceamento; ``passo`` documenta a origem no POP.
+    """
 
     data: str = ""
     conta_debito: str = ""
@@ -91,13 +111,40 @@ class Lancamento(BaseModel):
     matriz_filial: str = ""
     cc_debito: str = ""
     cc_credito: str = ""
+    # metadados internos (fora das 10 colunas do CSV)
+    lote: int = 0
+    passo: str = ""
 
 
 class MiddlewareInput(BaseModel):
-    """Campos confirmados/preenchidos pelo operador antes de gerar."""
+    """Campos confirmados/preenchidos pelo operador antes de gerar.
+
+    Tudo aqui é *regra de negócio / plano de contas* que não sai dos documentos
+    (spec §5). Os defaults do de-para pré-preenchem; o operador ajusta.
+    """
 
     tipo_importacao: Optional[str] = None
     entidade_contabil: Optional[str] = None
+
+    # Conta do processo (nome gerado pela regra §1.4; número informado)
+    conta_processo_nome: Optional[str] = None
+    conta_processo_numero: Optional[str] = None
+
+    # Papel-de-conta → código (sobrepõe PLANO_CONTAS_PADRAO) e histórico por papel
+    contas_override: Dict[str, str] = Field(default_factory=dict)
+    historicos_override: Dict[str, str] = Field(default_factory=dict)
+
+    # Classificação das linhas do fechamento (descrição → categoria) — guard §3
+    classificacao_override: Dict[str, str] = Field(default_factory=dict)
+
+    # Câmbio (campos 4–5; 6/7/8 são calculados) — do contrato de câmbio, ausente aqui
+    vlr_usd_pg_cambio: Optional[float] = None
+    tx_cambio: Optional[float] = None
+
+    # Reforma: "reservar" (default) ou "lancar" (quando a Larissa definir a regra)
+    tratamento_cbs_ibs: str = "reservar"
+
+    # Campos legados do fluxo TERRA/WIN (conta única) — mantidos por compat.
     conta_debito: Optional[str] = None
     conta_credito: Optional[str] = None
     cod_historico: Optional[str] = None
