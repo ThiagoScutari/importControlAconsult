@@ -16,6 +16,7 @@ from backend.detector import TipoDocumento, detectar_tipo
 from backend.extractors import (
     di,
     duimp,
+    fechamento_syndex,
     fechamento_terra,
     fechamento_win,
     nota_fiscal,
@@ -37,6 +38,7 @@ EXTRATORES = {
     TipoDocumento.NOTA_FISCAL: nota_fiscal,
     TipoDocumento.FECHAMENTO_TERRA: fechamento_terra,
     TipoDocumento.FECHAMENTO_WIN: fechamento_win,
+    TipoDocumento.FECHAMENTO_SYNDEX: fechamento_syndex,
 }
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

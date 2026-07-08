@@ -12,10 +12,21 @@ from backend.detector import TipoDocumento, detectar_tipo
         ("di870", TipoDocumento.DI),
         ("terra", TipoDocumento.FECHAMENTO_TERRA),
         ("win", TipoDocumento.FECHAMENTO_WIN),
+        # Kit SY1453 (SYNDEX)
+        ("duimp_sy1453", TipoDocumento.DUIMP),
+        ("nf_sy1453", TipoDocumento.NOTA_FISCAL),
+        ("syndex_fechamento", TipoDocumento.FECHAMENTO_SYNDEX),
+        ("syndex_numerario", TipoDocumento.FECHAMENTO_SYNDEX),
     ],
 )
 def test_classifica_assets(textos, nome, esperado):
     assert detectar_tipo(textos[nome]) == esperado
+
+
+def test_duimp_sy1453_nao_vira_syndex(textos):
+    # A DUIMP contém a palavra "SYNDEX" e a carta do despachante, mas NÃO o
+    # CNPJ do despachante — não pode ser classificada como fechamento.
+    assert detectar_tipo(textos["duimp_sy1453"]) == TipoDocumento.DUIMP
 
 
 def test_texto_irreconhecivel_retorna_desconhecido():

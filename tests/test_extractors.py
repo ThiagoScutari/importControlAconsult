@@ -1,7 +1,9 @@
 """Testes dos extratores contra os valores esperados do Anexo A (seção 9)."""
 import pytest
 
-from backend.extractors import duimp, di, nota_fiscal, fechamento_terra, fechamento_win
+from backend.extractors import (
+    duimp, di, nota_fiscal, fechamento_terra, fechamento_win, fechamento_syndex,
+)
 
 
 def approx(v):
@@ -256,9 +258,52 @@ class TestFechamentoWin:
 
 
 # ---------------------------------------------------------------------------
+# Fechamento SYNDEX (SY1453)
+# ---------------------------------------------------------------------------
+class TestFechamentoSyndex:
+    @pytest.fixture(scope="class")
+    def d(self, textos):
+        return fechamento_syndex.extrair(textos["syndex_fechamento"])
+
+    def test_identificacao(self, d):
+        assert d["subtipo"] == "fechamento"
+        assert d["cnpj"] == "02.286.106/0002-00"
+        assert "SYNDEX" in d["despachante"]
+        assert d["referencia"] == "SY1453/26"
+
+    def test_totais_e_saldo(self, d):
+        assert d["total_debitos"] == approx(103736.87)
+        assert d["total_creditos"] == approx(103834.93)
+        assert d["saldo"] == approx(98.06)
+
+    def test_despesas_e_bancarios(self, d):
+        assert len(d["despesas"]) >= 11
+        mapa = {x["descricao"]: x["valor"] for x in d["despesas"]}
+        assert mapa["IMPOSTO DE IMPORTAÇÃO"] == approx(42114.64)
+        assert mapa["ARMAZENAGEM"] == approx(7352.40)
+        assert mapa["AFRMM - MARINHA MERCANTE"] == approx(635.58)
+        assert d["banco"] == "SANTANDER"
+        assert d["agencia"] == "3159"
+        assert d["conta"] == "13005676-6"
+
+    def test_creditos_incluem_adiantamento(self, d):
+        descr = [c["descricao"] for c in d["creditos"]]
+        assert any("ADIANTAMENTO" in x for x in descr)
+
+
+class TestNumerarioSyndex:
+    def test_subtipo_numerario(self, textos):
+        d = fechamento_syndex.extrair(textos["syndex_numerario"])
+        assert d["subtipo"] == "numerario"
+        assert d["total_debitos"] == approx(101645.23)
+
+
+# ---------------------------------------------------------------------------
 # Tolerância: documento vazio/irreconhecível não deve quebrar
 # ---------------------------------------------------------------------------
-@pytest.mark.parametrize("mod", [duimp, di, nota_fiscal, fechamento_terra, fechamento_win])
+@pytest.mark.parametrize(
+    "mod", [duimp, di, nota_fiscal, fechamento_terra, fechamento_win, fechamento_syndex]
+)
 def test_extrator_tolera_texto_vazio(mod):
     resultado = mod.extrair("")
     assert isinstance(resultado, dict)
