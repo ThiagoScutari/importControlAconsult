@@ -18,6 +18,15 @@ from backend.pdf_utils import coerta_valor
 ValorOpt = Annotated[Optional[float], BeforeValidator(coerta_valor)]
 
 
+def _valor_ou_zero(v) -> float:
+    """Coação de valor obrigatório (partida): mesma regra do ValorOpt, default 0."""
+    return coerta_valor(v) or 0.0
+
+
+# Valor não-opcional (ex.: Lancamento.valor) coagido pela mesma regra de fronteira.
+ValorReq = Annotated[float, BeforeValidator(_valor_ou_zero)]
+
+
 class Aviso(BaseModel):
     """Mensagem de campo não encontrado ou divergência entre documentos."""
 
@@ -111,7 +120,7 @@ class Lancamento(BaseModel):
     data: str = ""
     conta_debito: str = ""
     conta_credito: str = ""
-    valor: float = 0.0
+    valor: ValorReq = 0.0  # coagido na fronteira (aceita float, "382358.58" ou "382.358,58")
     cod_historico: str = ""
     complemento_historico: str = ""
     inicia_lote: str = ""

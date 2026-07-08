@@ -136,6 +136,27 @@ def test_round_trip_valores_como_string_do_formulario(asset_files):
     assert "38235858" not in b and "528,0000" not in b  # sem corrupção
 
 
+def test_round_trip_cambio_string_nao_corrompe_variacao(asset_files):
+    """Câmbio 4–5 são strings manuais e alimentam o Passo 8; não podem corromper."""
+    proc = client.post(
+        "/extract", files=_upload(asset_files, "duimp_sy1453", "nf_sy1453", "syndex_fechamento")
+    ).json()
+    mid = {
+        "vlr_usd_pg_cambio": "52.403,08",  # BR
+        "tx_cambio": "5,10",               # BR
+        "contas_override": {"fornecedor_estrangeiro": "1177", "variacao_cambial_ativa": "973"},
+    }
+    resp = client.post("/generate", json={"processo": proc, "middleware": mid})
+    zf = zipfile.ZipFile(io.BytesIO(resp.content))
+    b = _saida(zf, "saida_B_lancamentos_dominio.csv")
+    linha = next(l for l in b.splitlines() if "VARIA" in l.upper())
+    # 52403,08 × 5,28 − 52403,08 × 5,10 = 9.432,55 (sem corrupção do decimal)
+    assert linha.split(";")[3] == "9432,55"
+    a = dict(zip(*[r.split(";") for r in _saida(zf, "saida_A_extracao.csv").splitlines()[:2]]))
+    assert a["VLR PG R$"] == "267.255,71"
+    assert a["Variação"] == "9.432,55"
+
+
 def test_generate_avisa_conta_faltante(asset_files):
     """Bug 2: papel sem código -> AVISOS.txt no zip (não passa em silêncio)."""
     proc = client.post(

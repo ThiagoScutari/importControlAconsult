@@ -25,6 +25,13 @@ class TestFormatacao:
         assert fmt_br(276688.26) == "276.688,26"
         assert fmt_br(5.28, casas=4) == "5,2800"
 
+    def test_lancamento_valor_coage_na_fronteira(self):
+        # Lancamento.valor usa a mesma coerção de fronteira (não parse_valor_br)
+        assert Lancamento(valor="382358.58").valor == 382358.58   # ponto do JS
+        assert Lancamento(valor="382.358,58").valor == 382358.58  # edição BR
+        assert Lancamento(valor=5.28).valor == 5.28
+        assert Lancamento(valor=None).valor == 0.0
+
 
 @pytest.fixture
 def proc_1159(textos):
