@@ -49,6 +49,8 @@ def parse_valor_br(texto: Optional[str]) -> Optional[float]:
     Regras:
     - ``.`` é separador de milhar, ``,`` é separador decimal.
     - Tolera prefixos como ``R$`` e espaços.
+    - Decimal de 1 dígito é aceito (``"3.018,3"`` -> ``3018.3 == 3018.30``),
+      caso real do CBS na NF-e SY1453.
     - String vazia / ``None`` / sem dígitos -> ``None`` (campo não encontrado).
     """
     if texto is None:

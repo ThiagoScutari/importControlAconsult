@@ -24,6 +24,11 @@ class TestParseValorBR:
     def test_inteiro_sem_decimal(self):
         assert parse_valor_br("965") == 965.0
 
+    def test_decimal_de_um_digito(self):
+        # Caso real da NF SY1453: "CBS R$ 3.018,3" (uma casa decimal)
+        assert parse_valor_br("3.018,3") == 3018.30
+        assert parse_valor_br("R$ 3.018,3") == 3018.30
+
     def test_vazio_retorna_none(self):
         assert parse_valor_br("") is None
         assert parse_valor_br(None) is None
