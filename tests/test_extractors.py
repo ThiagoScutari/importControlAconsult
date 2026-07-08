@@ -258,6 +258,30 @@ class TestFechamentoWin:
 
 
 # ---------------------------------------------------------------------------
+# NF de Importação SY1453 — Reforma Tributária (CBS/IBS na NF, não na DUIMP)
+# ---------------------------------------------------------------------------
+class TestNotaFiscalSY1453:
+    @pytest.fixture(scope="class")
+    def d(self, textos):
+        return nota_fiscal.extrair(textos["nf_sy1453"])
+
+    def test_identificacao(self, d):
+        assert d["numero"] == "000.002.411"
+        assert d["serie"] == "001"
+        assert d["cfop"] == "3102"  # importação direta
+        assert d["chave"] == "42260353203621000139550010000024111153675423"
+
+    def test_valores(self, d):
+        assert d["valor_produtos"] == approx(292461.18)
+        assert d["valor_total"] == approx(382358.58)
+
+    def test_reforma(self, d):
+        assert d["cbs"] == approx(3018.30)   # "R$ 3.018,3" (1 casa)
+        assert d["ibs_uf"] == approx(273.57)
+        assert d["ibs_mun"] == approx(0.00)
+
+
+# ---------------------------------------------------------------------------
 # Fechamento SYNDEX (SY1453)
 # ---------------------------------------------------------------------------
 class TestFechamentoSyndex:

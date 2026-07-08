@@ -19,7 +19,7 @@ def _valores_apos(rotulo: str, texto: str):
 def extrair(texto: str) -> Dict:
     d: Dict = {"tipo": TipoDocumento.NOTA_FISCAL.value}
 
-    d["numero"] = buscar(r"N[ºo]\.\s*([\d.]+)", texto)
+    d["numero"] = buscar(r"N[ºo]\.?\s*(\d{3}\.\d{3}\.\d{3})", texto)
     d["serie"] = buscar(r"S[ée]rie\s*(\d+)", texto)
     d["emissao"] = buscar(r"EMISS[ÃA]O:\s*([\d/]+)", texto)
 
@@ -35,10 +35,14 @@ def extrair(texto: str) -> Dict:
     d["destinatario_nome"] = m.group(1).strip() if m else None
     d["destinatario_cnpj"] = m.group(2) if m else None
 
-    d["cfop"] = buscar(r"(\d{4})PECAS", texto)
+    # CFOP: layout 1159 ("5949PECAS") ou geral do item (NCM CST CFOP UNID)
+    d["cfop"] = buscar(r"(\d{4})PECAS", texto) or buscar(
+        r"\b\d{8}\s+\d{2,3}\s+(\d{4})\s+[A-Z]{2}\b", texto
+    )
 
-    # Linha 1 do cálculo: base ICMS, ICMS, ..., valor produtos (último)
-    linha1 = _valores_apos(r"BASE DE C[ÁA]LC\. DO ICMS", texto)
+    # Linha 1 do cálculo: base ICMS, ICMS, ..., valor produtos (último).
+    # Âncora tolera "CÁLC. DO ICMS" (1159) e "CÁLCULO DO ICMS" (SY1453).
+    linha1 = _valores_apos(r"BASE DE C[ÁA]LC[\w.]* DO ICMS", texto)
     if linha1:
         d["base_icms"] = linha1[0]
         d["icms"] = linha1[1] if len(linha1) > 1 else None
@@ -63,5 +67,12 @@ def extrair(texto: str) -> Dict:
     d["pis_entrada"] = buscar_valor(r"Valor do PIS Entrada:\s*\n?\s*R\$\s*([\d.,]+)", texto)
     d["cofins_entrada"] = buscar_valor(r"Valor do COFINS Entrada:\s*R\$\s*([\d.,]+)", texto)
     d["siscomex"] = buscar_valor(r"Valor Taxa Siscomex:\s*R\$\s*([\d.,]+)", texto)
+
+    # Reforma tributária (Info. Complementares): "CBS R$ 3.018,3 / IBS UF R$
+    # 273,57 / IBS MUN. R$ 0,00". Extraídos e reservados (regra de partida a
+    # confirmar com a Larissa). Ausentes na NF antiga (1159) -> None.
+    d["cbs"] = buscar_valor(r"\bCBS\s*R\$\s*([\d.,]+)", texto)
+    d["ibs_uf"] = buscar_valor(r"IBS[\s.]*UF[\s.]*R\$\s*([\d.,]+)", texto)
+    d["ibs_mun"] = buscar_valor(r"IBS[\s.]*MUN[\s.]*R\$\s*([\d.,]+)", texto)
 
     return d
