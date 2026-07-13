@@ -5,7 +5,7 @@ import re
 from typing import Dict
 
 from backend.detector import TipoDocumento
-from backend.pdf_utils import buscar, buscar_valor, parse_valor_br
+from backend.pdf_utils import buscar, buscar_valor, numero_nf_limpo, parse_valor_br
 
 
 def _valores_apos(rotulo: str, texto: str):
@@ -19,7 +19,9 @@ def _valores_apos(rotulo: str, texto: str):
 def extrair(texto: str) -> Dict:
     d: Dict = {"tipo": TipoDocumento.NOTA_FISCAL.value}
 
-    d["numero"] = buscar(r"N[ºo]\.?\s*(\d{3}\.\d{3}\.\d{3})", texto)
+    # Número inteiro limpo (sem milhar/zeros à esquerda): "000.002.411" -> "2411".
+    # É copiado para criar a conta e vai na Relação (spec §1.4 [R3]).
+    d["numero"] = numero_nf_limpo(buscar(r"N[ºo]\.?\s*(\d{3}\.\d{3}\.\d{3})", texto))
     d["serie"] = buscar(r"S[ée]rie\s*(\d+)", texto)
     d["emissao"] = buscar(r"EMISS[ÃA]O:\s*([\d/]+)", texto)
 

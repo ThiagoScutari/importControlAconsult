@@ -164,7 +164,7 @@ def _complemento_padrao(p: ProcessoExtraido) -> str:
     if p.di_duimp:
         partes.append(f"DI/DUIMP {p.di_duimp}")
     if p.numero_nf:
-        partes.append(f"NF {p.numero_nf}")
+        partes.append(f"NF {numero_nf_limpo(p.numero_nf)}")  # inteiro limpo (spec §1.4 [R3])
     return " ".join(partes)
 
 

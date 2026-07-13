@@ -33,7 +33,7 @@ def test_extract_consolida_processo_1159(asset_files):
     dados = resp.json()
     assert dados["processo"] == "1159"
     assert dados["di_duimp"] == "26BR0000380790-9"
-    assert dados["numero_nf"] == "000.000.769"
+    assert dados["numero_nf"] == "769"  # [R3] inteiro limpo
     assert "sugestoes_middleware" in dados
 
 
@@ -71,7 +71,7 @@ def test_extract_sy1453_reforma_e_classificacao(asset_files):
     resp = client.post("/extract", files=_upload(asset_files, "duimp_sy1453", "nf_sy1453", "syndex_fechamento"))
     dados = resp.json()
     assert dados["di_duimp"] == "26BR0000258971-1"
-    assert dados["numero_nf"] == "000.002.411"
+    assert dados["numero_nf"] == "2411"  # [R3] inteiro limpo
     assert dados["resultado_rs"] == pytest.approx(276688.26, abs=0.01)
     assert dados["cbs"] == pytest.approx(3018.30, abs=0.01)
     sm = dados["sugestoes_middleware"]

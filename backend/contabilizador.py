@@ -29,10 +29,15 @@ from backend.depara import (
     codigo_conta,
 )
 from backend.models import Aviso, Lancamento, MiddlewareInput, ProcessoExtraido
+from backend.pdf_utils import numero_nf_limpo
 
 
 def montar_nome_conta_processo(p: ProcessoExtraido) -> str:
-    """Nome da conta do processo (spec §1.4): PROCESSO <nome> DI/DUIMP <n> NF <n>."""
+    """Nome da conta do processo (spec §1.4): PROCESSO <nome> DI/DUIMP <n> NF <n>.
+
+    A descrição é copiada para criar a conta no plano de contas, então o nº da NF
+    entra como inteiro limpo — "NF 2411", não "NF 000.002.411" (spec §1.4 [R3]).
+    """
     nome = p.importador_nome or p.fornecedor_estrangeiro or ""
     partes = ["PROCESSO"]
     if nome:
@@ -40,7 +45,7 @@ def montar_nome_conta_processo(p: ProcessoExtraido) -> str:
     if p.di_duimp:
         partes.append(f"DI/DUIMP {p.di_duimp}")
     if p.numero_nf:
-        partes.append(f"NF {p.numero_nf}")
+        partes.append(f"NF {numero_nf_limpo(p.numero_nf)}")
     return " ".join(partes)
 
 

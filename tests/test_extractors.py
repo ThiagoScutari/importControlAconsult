@@ -108,7 +108,7 @@ class TestNotaFiscal1159:
         return nota_fiscal.extrair(textos["nf1159"])
 
     def test_identificacao(self, d):
-        assert d["numero"] == "000.000.769"
+        assert d["numero"] == "769"  # [R3] inteiro limpo (sem milhar/zeros)
         assert d["serie"] == "001"
         assert d["emissao"] == "30/04/2026"
         assert d["emitente_cnpj"] == "57.345.180/0001-60"
@@ -266,7 +266,7 @@ class TestNotaFiscalSY1453:
         return nota_fiscal.extrair(textos["nf_sy1453"])
 
     def test_identificacao(self, d):
-        assert d["numero"] == "000.002.411"
+        assert d["numero"] == "2411"  # [R3] inteiro limpo (sem milhar/zeros)
         assert d["serie"] == "001"
         assert d["cfop"] == "3102"  # importação direta
         assert d["chave"] == "42260353203621000139550010000024111153675423"
