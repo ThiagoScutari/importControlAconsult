@@ -194,7 +194,10 @@ def gerar_partidas(processo: ProcessoExtraido, middleware: MiddlewareInput) -> L
         usd = float(middleware.vlr_usd_pg_cambio)
         vlr_pg_rs = round(usd * float(middleware.tx_cambio), 2)          # campo 6 = 4×5
         vlr_pg_x_tx_di = round(usd * float(processo.tx_di), 2)           # campo 7 = 4×2
-        variacao = round(vlr_pg_x_tx_di - vlr_pg_rs, 2)                  # campo 8 (convenção provisória)
+        # campo 8 = coluna X da Relação = campo 6 − campo 7 (spec §1.3 [R3]).
+        # (o código tinha o sinal invertido, 7 − 6.) Passo 8: >0 → ativa (973 C);
+        # <0 → passiva (370 D).
+        variacao = round(vlr_pg_rs - vlr_pg_x_tx_di, 2)                  # campo 8 = 6 − 7
         # reflete na Saída A
         processo.vlr_usd_pg_cambio = usd
         processo.tx_cambio = float(middleware.tx_cambio)

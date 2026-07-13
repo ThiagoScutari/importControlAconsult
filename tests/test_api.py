@@ -159,11 +159,12 @@ def test_round_trip_cambio_string_nao_corrompe_variacao(asset_files):
     zf = zipfile.ZipFile(io.BytesIO(resp.content))
     b = _saida(zf, "saida_B_lancamentos_dominio.csv")
     linha = next(l for l in b.splitlines() if "VARIA" in l.upper())
-    # 52403,08 × 5,28 − 52403,08 × 5,10 = 9.432,55 (sem corrupção do decimal)
+    # valor da partida = |variação|; magnitude 9.432,55 (sem corrupção do decimal)
     assert linha.split(";")[3] == "9432,55"
     a = dict(zip(*[r.split(";") for r in _saida(zf, "saida_A_extracao.csv").splitlines()[:2]]))
     assert a["VLR PG R$"] == "267.255,71"
-    assert a["Variação"] == "9.432,55"
+    # [R3] variação = campo 6 − campo 7 = 267.255,71 − 276.688,26 = -9.432,55 (negativa)
+    assert a["Variação"] == "-9.432,55"
 
 
 def test_generate_avisa_conta_faltante(asset_files):
