@@ -58,24 +58,70 @@ FRONTEND = os.path.join(ROOT, "frontend")
 
 app = FastAPI(title="Extrator de Importação — Aconsult (mockup)")
 
+# Limite de upload no app (defesa em profundidade; spec §13). O nginx já corta
+# uploads grandes (client_max_body_size), mas o app também recusa por conta —
+# útil no Docker sem proxy. Responde 413 quando o Content-Length passa do teto;
+# uploads chunked (sem Content-Length) ficam a cargo do proxy (ok p/ o mockup).
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB (alinhar com o client_max_body_size do nginx)
+
+
+@app.middleware("http")
+async def limite_tamanho_upload(request, call_next):
+    cl = request.headers.get("content-length")
+    if cl is not None:
+        try:
+            if int(cl) > MAX_UPLOAD_BYTES:
+                return JSONResponse(
+                    status_code=413,
+                    content={"erro": f"upload excede o limite de {MAX_UPLOAD_BYTES // (1024 * 1024)} MB"},
+                )
+        except ValueError:
+            pass  # header malformado: segue e falha adiante normalmente
+    return await call_next(request)
+
 
 @app.post("/extract")
 async def extract(arquivos: List[UploadFile] = File(...)):
     """Recebe 1..N PDFs de um processo: detecta, extrai e consolida."""
     documentos = []
     nao_reconhecidos = []
+    anexos = []  # anexos/referência reconhecidos e ignorados com calma (spec §3 [R3])
     for arq in arquivos:
         conteudo = await arq.read()
         try:
             texto = extract_text(conteudo)
         except Exception as exc:  # PDF ilegível / corrompido
-            nao_reconhecidos.append({"arquivo": arq.filename, "motivo": str(exc)})
+            nao_reconhecidos.append({"arquivo": arq.filename, "motivo": f"PDF ilegível: {exc}"})
             continue
-        tipo = detectar_tipo(texto)
+
+        # Detectar/extrair blindados: uma exceção em um arquivo não pode derrubar
+        # o /extract inteiro — o arquivo problemático é isolado e reportado.
+        try:
+            tipo = detectar_tipo(texto)
+        except Exception as exc:
+            nao_reconhecidos.append({"arquivo": arq.filename, "motivo": f"falha ao classificar: {exc}"})
+            continue
+
+        if tipo == TipoDocumento.ANEXO_REFERENCIA:
+            eh_imagem = len((texto or "").strip()) < LIMIAR_TEXTO_MINIMO
+            anexos.append({
+                "arquivo": arq.filename,
+                "motivo": "anexo/referência (imagem)" if eh_imagem else "anexo/referência",
+            })
+            continue
         if tipo == TipoDocumento.DESCONHECIDO:
             nao_reconhecidos.append({"arquivo": arq.filename, "motivo": "tipo não reconhecido"})
             continue
-        dados = EXTRATORES[tipo].extrair(texto)
+
+        extrator = EXTRATORES.get(tipo)
+        if extrator is None:  # tipo suportado sem extrator registrado (defensivo)
+            nao_reconhecidos.append({"arquivo": arq.filename, "motivo": f"sem extrator para {tipo.value}"})
+            continue
+        try:
+            dados = extrator.extrair(texto)
+        except Exception as exc:  # regex/parse quebrou neste arquivo — isola e segue
+            nao_reconhecidos.append({"arquivo": arq.filename, "motivo": f"falha na extração ({tipo.value}): {exc}"})
+            continue
         dados["_arquivo"] = arq.filename
         documentos.append(dados)
 
@@ -84,6 +130,7 @@ async def extract(arquivos: List[UploadFile] = File(...)):
 
     payload = processo.model_dump()
     payload["nao_reconhecidos"] = nao_reconhecidos
+    payload["anexos"] = anexos
     payload["sugestoes_middleware"] = sugestoes
     return JSONResponse(payload)
 
