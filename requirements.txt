@@ -1,6 +1,28 @@
+# --- Framework da aplicação ---
 fastapi>=0.110
 uvicorn[standard]>=0.29
-pdfplumber>=0.11
 pydantic>=2.6
 python-multipart>=0.0.9
+
+# --- Extração de PDF: PINADO para determinismo na VPS (Fatia 1, spec §13) ---
+# Estas versões são as validadas contra o corpus real (assets/): trocar de versão
+# pode alterar o texto extraído e quebrar as regex calibradas dos extratores.
+# Só repinar depois de rodar `pytest` + a checagem do corpus. Os avisos
+# "Could not get FontBBox…" do pdfminer.six 20251230 são cosméticos aqui (os
+# arquivos suportados extraem corretamente).
+pdfplumber==0.11.9
+pdfminer.six==20251230
+pypdfium2==5.8.0
+Pillow==12.2.0
+cryptography==47.0.0
+charset-normalizer==3.4.7
+
+# --- Relação das Importações (Saída D): append em .xlsx preservando fórmulas ---
+openpyxl==3.1.5
+
+# --- Testes ---
 pytest>=8.0
+# httpx é o backend do starlette.testclient (test_api/test_relacao). PINADO: a
+# compatibilidade TestClient×httpx já quebrou entre versões — travar garante que
+# um clone novo rode a suíte (lacuna pega no clean-venv da Fatia 1).
+httpx==0.28.1
