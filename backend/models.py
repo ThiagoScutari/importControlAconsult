@@ -28,11 +28,25 @@ ValorReq = Annotated[float, BeforeValidator(_valor_ou_zero)]
 
 
 class Aviso(BaseModel):
-    """Mensagem de campo não encontrado ou divergência entre documentos."""
+    """Mensagem informativa/pendência (campo ausente, reconciliação, etc.)."""
 
-    tipo: str  # "ausente" | "divergencia"
+    tipo: str  # "ausente" | "info"
     campo: str
     mensagem: str
+
+
+class Divergencia(BaseModel):
+    """Conflito de valor entre documentos para um campo (spec §3 [R2]/[R3]).
+
+    Guarda TODOS os candidatos (fonte + valor), não só o escolhido, para a
+    **conferência navegável**: o operador vê os valores lado a lado e escolhe
+    qual usar. Não há correção automática — a decisão é dele.
+    """
+
+    campo: str
+    candidatos: List[Dict[str, Any]] = Field(default_factory=list)  # [{"fonte", "valor"}]
+    escolhido_fonte: Optional[str] = None
+    escolhido_valor: Any = None
 
 
 class ProcessoExtraido(BaseModel):
