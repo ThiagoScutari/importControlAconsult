@@ -400,6 +400,49 @@ function coletarMiddleware() {
   return m;
 }
 
+// ----- Saída D: atualizar a Relação das Importações (.xlsx) -----
+$("#relacao-file").addEventListener("change", (e) => {
+  $("#btn-relacao").disabled = !(e.target.files && e.target.files.length);
+});
+$("#btn-relacao").addEventListener("click", atualizarRelacao);
+
+async function atualizarRelacao() {
+  const status = $("#relacao-status");
+  const arquivo = $("#relacao-file").files[0];
+  if (!arquivo) { status.textContent = "✕ selecione o .xlsx da Relação"; return; }
+  status.textContent = "Atualizando…";
+  try {
+    // mesmo contrato do /generate (processo + middleware editados), como campo de form
+    const payload = JSON.stringify({ processo: coletarProcesso(), middleware: coletarMiddleware() });
+    const fd = new FormData();
+    fd.append("arquivo", arquivo);
+    fd.append("payload", payload);
+    const resp = await fetch("/relacao", { method: "POST", body: fd });
+    if (!resp.ok) {
+      let msg = "Falha ao atualizar (" + resp.status + ")";
+      try { const j = await resp.json(); if (j.erro) msg = j.erro; } catch (_) {}
+      throw new Error(msg);
+    }
+    baixarBlob(await resp.blob(),
+      `relacao_atualizada_${(coletarProcesso().processo || "sem_ref").replace(/\W+/g, "_")}.xlsx`);
+    status.textContent = "✓ Relação atualizada baixada";
+  } catch (err) {
+    status.textContent = "✕ " + err.message;
+  }
+}
+
+// download utilitário compartilhado (zip das saídas e xlsx da Relação)
+function baixarBlob(blob, nome) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nome;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 async function gerar() {
   const status = $("#gerar-status");
   status.textContent = "Gerando…";
@@ -411,15 +454,8 @@ async function gerar() {
       body,
     });
     if (!resp.ok) throw new Error("Falha ao gerar (" + resp.status + ")");
-    const blob = await resp.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `saidas_processo_${(coletarProcesso().processo || "sem_ref").replace(/\W+/g, "_")}.zip`;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    baixarBlob(await resp.blob(),
+      `saidas_processo_${(coletarProcesso().processo || "sem_ref").replace(/\W+/g, "_")}.zip`);
     status.textContent = "✓ arquivos baixados";
   } catch (err) {
     status.textContent = "✕ " + err.message;

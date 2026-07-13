@@ -57,6 +57,16 @@
 
       <label class="check"><input type="checkbox" id="incluir-c" /> Incluir Saída C (cadastro de fornecedor)</label>
 
+      <!-- Saída D: acrescenta este processo à Relação das Importações da empresa -->
+      <div class="relacao-bloco">
+        <h4>Relação das Importações <small>— Saída D: acrescenta este processo à planilha histórica da empresa (.xlsx)</small></h4>
+        <div class="relacao-linha">
+          <input id="relacao-file" type="file" accept=".xlsx" />
+          <button id="btn-relacao" class="btn" disabled>Atualizar Relação (.xlsx)</button>
+          <span id="relacao-status" class="status"></span>
+        </div>
+      </div>
+
       <div class="acoes">
         <button id="btn-gerar" class="btn primary">Gerar arquivos</button>
         <button id="btn-recomecar" class="btn">Recomeçar</button>

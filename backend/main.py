@@ -7,7 +7,7 @@ import re
 import zipfile
 from typing import List
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -37,6 +37,7 @@ from backend.extractors import (
 )
 from backend.models import GerarRequest
 from backend.outputs import (
+    append_relacao,
     gerar_saida_a,
     gerar_saida_a_rastreavel,
     gerar_saida_b,
@@ -222,6 +223,43 @@ async def generate(req: GerarRequest):
         content=buf.getvalue(),
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{nome_zip}"'},
+    )
+
+
+XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+@app.post("/relacao")
+async def relacao(arquivo: UploadFile = File(...), payload: str = Form(...)):
+    """Saída D (spec §6.4): recebe a Relação atual da empresa (.xlsx), insere UMA
+    linha do processo sob o bloco do ano e devolve o arquivo atualizado.
+
+    O ``payload`` é o mesmo ``GerarRequest`` (processo + middleware) do /generate,
+    enviado como campo de formulário ao lado do upload da planilha.
+    """
+    try:
+        req = GerarRequest.model_validate_json(payload)
+    except Exception as exc:
+        return JSONResponse(status_code=422, content={"erro": f"payload inválido: {exc}"})
+
+    processo = req.processo
+    if req.middleware.tipo_importacao:
+        processo.tipo_importacao = req.middleware.tipo_importacao
+
+    conteudo = await arquivo.read()
+    try:
+        atualizado = append_relacao(conteudo, processo, req.middleware)
+    except Exception as exc:  # planilha inesperada / corrompida — não derruba a rota
+        return JSONResponse(
+            status_code=400,
+            content={"erro": f"não foi possível atualizar a Relação: {exc}"},
+        )
+
+    nome = f"{_slug(processo.processo)}_relacao_atualizada.xlsx"
+    return Response(
+        content=atualizado,
+        media_type=XLSX_MEDIA,
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
     )
 
 
