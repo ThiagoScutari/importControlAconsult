@@ -190,7 +190,11 @@ function renderContas(papeis) {
   chaves.forEach((papel) => {
     const tr = el("tr");
     tr.append(el("td", {}, papel));
-    tr.append(el("td", {}, el("input", { id: "conta__" + papel, type: "text", value: papeis[papel] || "" })));
+    // [R3] contas sem default (ex.: conta do processo/fornecedor) vêm em branco —
+    // o operador informa; o placeholder sinaliza a obrigatoriedade.
+    const attrs = { id: "conta__" + papel, type: "text", value: papeis[papel] || "" };
+    if (!papeis[papel]) attrs.placeholder = "informe o código";
+    tr.append(el("td", {}, el("input", attrs)));
     tbody.append(tr);
   });
   tbody.dataset.papeis = JSON.stringify(chaves);

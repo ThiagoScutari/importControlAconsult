@@ -28,10 +28,14 @@ def proc_sy1453(textos):
 
 @pytest.fixture
 def middleware():
-    # de-para semeado + adiantamento/banco informados pelo operador
+    # de-para POR EMPRESA: [R3] conta do processo/fornecedor não têm mais default
+    # hardcoded — o operador as informa (aqui, semeadas). Sem elas, as partidas
+    # dos Passos 5/6.2 são bloqueadas (ver test_conta_em_branco_bloqueia_partida).
     return MiddlewareInput(
         data_lancamento="31/03/2026",
         contas_override={
+            PapelConta.CONTA_PROCESSO.value: "1648",
+            PapelConta.FORNECEDOR_ESTRANGEIRO.value: "1177",
             PapelConta.ADIANTAMENTO_DESPACHANTE.value: "9101",
             PapelConta.BANCO.value: "1",
         },
@@ -42,9 +46,10 @@ class TestMotorEstrutura:
     def test_passo5_partida2_valor_devido(self, proc_sy1453, middleware):
         parts = gerar_partidas(proc_sy1453, middleware)
         p52 = [l for l in parts if l.passo == "5.2"]
+        ovr = middleware.contas_override
         assert len(p52) == 1
-        assert p52[0].conta_debito == codigo_conta(PapelConta.CONTA_PROCESSO)      # 1648
-        assert p52[0].conta_credito == codigo_conta(PapelConta.FORNECEDOR_ESTRANGEIRO)  # 1177
+        assert p52[0].conta_debito == codigo_conta(PapelConta.CONTA_PROCESSO, ovr)      # 1648 (de-para)
+        assert p52[0].conta_credito == codigo_conta(PapelConta.FORNECEDOR_ESTRANGEIRO, ovr)  # 1177 (de-para)
         assert p52[0].valor == pytest.approx(276688.26, abs=0.01)
         assert "VALOR DEVIDO FORNECEDOR" in p52[0].complemento_historico
 
@@ -64,7 +69,7 @@ class TestMotorEstrutura:
         # e ICMS ficam de fora (já entram pela NF no Passo 5).
         descrs = [l.complemento_historico for l in p62]
         assert len(p62) == 4
-        assert all(l.conta_debito == codigo_conta(PapelConta.CONTA_PROCESSO) for l in p62)
+        assert all(l.conta_debito == codigo_conta(PapelConta.CONTA_PROCESSO, middleware.contas_override) for l in p62)
         soma = sum(l.valor for l in p62)
         assert soma == pytest.approx(9856.61, abs=0.01)
         # nenhum tributo federal recontabilizado
@@ -94,23 +99,33 @@ class TestMotorEstrutura:
         assert any("adiantamento_despachante" in a.campo or "adiantamento_despachante" in a.mensagem
                    for a in proc_sy1453.avisos)
 
+    def test_conta_em_branco_bloqueia_partida(self, proc_sy1453):
+        # spec §1.4 [R3]: sem de-para, conta do processo/fornecedor ficam em branco →
+        # as partidas dos Passos 5/6.2 NÃO são geradas e sai aviso de "conta obrigatória".
+        parts = gerar_partidas(proc_sy1453, MiddlewareInput())
+        assert not any(l.passo in ("5.1", "5.2", "6.2") for l in parts)
+        assert any("não preenchida" in a.mensagem for a in proc_sy1453.avisos)
+
     def test_nome_conta_processo(self, proc_sy1453):
         nome = montar_nome_conta_processo(proc_sy1453)
         assert nome.startswith("PROCESSO")
         assert "26BR0000258971-1" in nome
-        assert "000.002.411" in nome
+        assert "NF 2411" in nome  # [R3] inteiro limpo, não "000.002.411"
 
 
 class TestMotorCambio:
     def test_passo8_com_cambio_gera_variacao(self, proc_sy1453):
-        # operador informa contrato de câmbio: paga 52.403,08 USD a 5,10
-        mid = MiddlewareInput(vlr_usd_pg_cambio=52403.08, tx_cambio=5.10)
+        # operador informa contrato de câmbio: paga 52.403,08 USD a 5,10.
+        # de-para: fornecedor preenchido (sem ele o Passo 8 seria bloqueado — [R3]).
+        ovr = {PapelConta.FORNECEDOR_ESTRANGEIRO.value: "1177"}
+        mid = MiddlewareInput(vlr_usd_pg_cambio=52403.08, tx_cambio=5.10, contas_override=ovr)
         parts = gerar_partidas(proc_sy1453, mid)
         p8 = [l for l in parts if l.passo == "8"]
         assert len(p8) == 1
-        # tx_cambio (5,10) < tx_di (5,28) => deveria pagar mais => variação ativa
-        assert p8[0].conta_debito == codigo_conta(PapelConta.FORNECEDOR_ESTRANGEIRO)
-        assert p8[0].conta_credito == codigo_conta(PapelConta.VARIACAO_CAMBIAL_ATIVA)
+        # [R3] variação = 6 − 7: pagou a 5,10 (< tx_di 5,28) => campo6 < campo7 =>
+        # X negativo => variação PASSIVA (D 370 · C fornecedor).
+        assert p8[0].conta_debito == codigo_conta(PapelConta.VARIACAO_CAMBIAL_PASSIVA)
+        assert p8[0].conta_credito == codigo_conta(PapelConta.FORNECEDOR_ESTRANGEIRO, ovr)
         assert lotes_balanceiam(parts)
 
 

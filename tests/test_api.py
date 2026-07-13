@@ -9,6 +9,15 @@ from backend.main import app
 
 client = TestClient(app)
 
+# de-para POR EMPRESA que o operador preenche. [R3] (Item 5): sem estes números
+# as contas do processo/fornecedor ficam em branco e as partidas dos Passos
+# 5/6.2 NÃO são geradas — então os testes de round-trip precisam semeá-las.
+_CONTAS = {
+    "conta_processo": "1648",
+    "fornecedor_estrangeiro": "1177",
+    "adiantamento_despachante": "9101",
+}
+
 
 def _upload(asset_files, *nomes):
     arquivos = []
@@ -37,7 +46,7 @@ def test_extract_ignora_arquivo_irreconhecivel(asset_files):
 
 def test_generate_devolve_zip_com_saidas(asset_files):
     extraido = client.post("/extract", files=_upload(asset_files, "di870", "terra")).json()
-    body = {"processo": extraido, "middleware": {"incluir_saida_c": True}}
+    body = {"processo": extraido, "middleware": {"incluir_saida_c": True, "contas_override": _CONTAS}}
     resp = client.post("/generate", json=body)
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "application/zip"
@@ -76,7 +85,7 @@ def test_generate_sy1453_saida_b_respeita_guard(asset_files):
     extraido = client.post(
         "/extract", files=_upload(asset_files, "duimp_sy1453", "nf_sy1453", "syndex_fechamento")
     ).json()
-    body = {"processo": extraido, "middleware": {"contas_override": {"adiantamento_despachante": "9101"}}}
+    body = {"processo": extraido, "middleware": {"contas_override": _CONTAS}}
     resp = client.post("/generate", json=body)
     assert resp.status_code == 200
     zf = zipfile.ZipFile(io.BytesIO(resp.content))
@@ -101,7 +110,7 @@ def test_round_trip_nao_corrompe_decimais(asset_files):
     proc = client.post(
         "/extract", files=_upload(asset_files, "duimp_sy1453", "nf_sy1453", "syndex_fechamento")
     ).json()
-    resp = client.post("/generate", json={"processo": proc, "middleware": {}})
+    resp = client.post("/generate", json={"processo": proc, "middleware": {"contas_override": _CONTAS}})
     zf = zipfile.ZipFile(io.BytesIO(resp.content))
 
     b = _saida(zf, "saida_B_lancamentos_dominio.csv").strip().splitlines()
@@ -129,7 +138,7 @@ def test_round_trip_valores_como_string_do_formulario(asset_files):
     proc["invoice_usd"] = "52403.08"
     proc["tx_di"] = "5.28"
     proc["resultado_rs"] = "276688.26"
-    resp = client.post("/generate", json={"processo": proc, "middleware": {}})
+    resp = client.post("/generate", json={"processo": proc, "middleware": {"contas_override": _CONTAS}})
     zf = zipfile.ZipFile(io.BytesIO(resp.content))
     b = _saida(zf, "saida_B_lancamentos_dominio.csv")
     assert "382358,58" in b and "276688,26" in b
