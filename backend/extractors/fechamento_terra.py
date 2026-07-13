@@ -5,7 +5,7 @@ import re
 from typing import Dict, List
 
 from backend.detector import CNPJ_TERRA, TipoDocumento
-from backend.pdf_utils import buscar, parse_valor_br
+from backend.pdf_utils import buscar, parse_valor_br, somar_adiantamentos
 
 
 def _despesas(texto: str) -> List[Dict]:
@@ -79,6 +79,10 @@ def extrair(texto: str) -> Dict:
         d["origem"] = d["destino"] = d["navio"] = None
 
     d["despesas"] = _despesas(texto)
+
+    # Adiantamento (crédito do Passo 6.2): no TERRA aparece como linha
+    # "ADIANTAMENTO <data> +<valor>", captada em `despesas`. [F1-04]
+    d["adiantamento_total"], d["adiantamentos"] = somar_adiantamentos(d["despesas"])
 
     # Linha de retenções/totais (layout fixo TERRA)
     m = re.search(r"Adiantamentos PIS COFINS.*?\n([^\n]+)", texto, re.IGNORECASE | re.DOTALL)

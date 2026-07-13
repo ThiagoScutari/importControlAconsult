@@ -139,9 +139,15 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
         navio=pega("navio", [("DUIMP", g(duimp, "navio")), ("DI", g(di, "navio")), ("TERRA", g(terra, "navio"))]),
         bl=pega("bl", [("DUIMP", g(duimp, "bl")), ("DI", g(di, "bl"))]),
         chegada=pega("chegada", [("DUIMP", g(duimp, "chegada")), ("DI", g(di, "chegada"))]),
+        adiantamento_total=pega("adiantamento_total", [
+            ("TERRA", g(terra, "adiantamento_total")), ("WIN", g(win, "adiantamento_total")),
+            ("SYNDEX", g(syndex, "adiantamento_total")), ("ALLTIME", g(alltime, "adiantamento_total")),
+        ]),
         documentos=list(documentos),
         despesas=list(fechamento.get("despesas", [])) if fechamento else [],
+        adiantamentos=list(fechamento.get("adiantamentos", [])) if fechamento else [],
         avisos=avisos,
+        divergencias=divergencias,
         rastreamento=rastreamento,
     )
 

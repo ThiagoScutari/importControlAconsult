@@ -154,6 +154,22 @@ def gerar_partidas(processo: ProcessoExtraido, middleware: MiddlewareInput) -> L
         ))
         primeiro = False
 
+    # Adiantamento (crédito do Passo 6.2): o crédito das partidas acima é a conta
+    # ADIANTAMENTO_DESPACHANTE. Registramos o total do numerário adiantado
+    # (capturado do fechamento, spec §1.5 6.2 [R2]) e a diferença vs. as despesas
+    # do 6.2 — base do acerto com o despachante (6.2.4). Aviso informativo (não bloqueia).
+    if processo.adiantamento_total:
+        soma_62 = round(sum(l.valor for l in lancamentos if l.passo == "6.2"), 2)
+        diff = round(float(processo.adiantamento_total) - soma_62, 2)
+        avisos.append(Aviso(
+            tipo="info", campo="adiantamento",
+            mensagem=(
+                f"Adiantamento capturado R$ {_fmt(processo.adiantamento_total)} "
+                f"(crédito do Passo 6.2 · conta ADIANTAMENTO). Despesas do numerário no 6.2: "
+                f"R$ {_fmt(soma_62)}; diferença R$ {_fmt(diff)} → conta do despachante (6.2.4)."
+            ),
+        ))
+
     # ------------------------------------------------------------------
     # Passo 8 (câmbio) — só com dados do contrato de câmbio no middleware
     # ------------------------------------------------------------------

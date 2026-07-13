@@ -102,10 +102,16 @@ class ProcessoExtraido(BaseModel):
     bl: Optional[str] = None
     chegada: Optional[str] = None
 
+    # Adiantamento do numerário (crédito do Passo 6.2 — spec §1.5 6.2 [R2]).
+    # Total = soma das linhas do fechamento rotuladas "adiantamento".
+    adiantamento_total: ValorOpt = None
+
     # Rastreabilidade
     documentos: List[Dict[str, Any]] = Field(default_factory=list)
     despesas: List[Dict[str, Any]] = Field(default_factory=list)
+    adiantamentos: List[Dict[str, Any]] = Field(default_factory=list)
     avisos: List[Aviso] = Field(default_factory=list)
+    divergencias: List[Divergencia] = Field(default_factory=list)  # conferência navegável
     rastreamento: List[Dict[str, Any]] = Field(default_factory=list)
 
 
