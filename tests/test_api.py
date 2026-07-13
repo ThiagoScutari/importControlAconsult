@@ -185,3 +185,16 @@ def test_index_serve_html():
     resp = client.get("/")
     assert resp.status_code == 200
     assert "Extrator de Importação" in resp.text
+
+
+def test_upload_acima_do_limite_recusado_413():
+    """[F1-10] Limite de upload no app: Content-Length acima do teto -> 413."""
+    from backend.main import MAX_UPLOAD_BYTES
+
+    resp = client.post(
+        "/extract",
+        headers={"content-length": str(MAX_UPLOAD_BYTES + 1)},
+        content=b"x",
+    )
+    assert resp.status_code == 413
+    assert "limite" in resp.json()["erro"].lower()
