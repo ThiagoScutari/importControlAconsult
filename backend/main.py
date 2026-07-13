@@ -25,10 +25,11 @@ from backend.depara import (
     sugerir_despesa,
     sugerir_fornecedor,
 )
-from backend.detector import TipoDocumento, detectar_tipo
+from backend.detector import LIMIAR_TEXTO_MINIMO, TipoDocumento, detectar_tipo
 from backend.extractors import (
     di,
     duimp,
+    fechamento_alltime,
     fechamento_syndex,
     fechamento_terra,
     fechamento_win,
@@ -51,6 +52,7 @@ EXTRATORES = {
     TipoDocumento.FECHAMENTO_TERRA: fechamento_terra,
     TipoDocumento.FECHAMENTO_WIN: fechamento_win,
     TipoDocumento.FECHAMENTO_SYNDEX: fechamento_syndex,
+    TipoDocumento.FECHAMENTO_ALLTIME: fechamento_alltime,
 }
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -109,7 +109,7 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
         importador_cnpj=pega("importador_cnpj", [("DUIMP", g(duimp, "importador_cnpj")), ("DI", g(di, "importador_cnpj")), ("NF", g(nf, "emitente_cnpj"))]),
         adquirente_nome=pega("adquirente_nome", [("DI", g(di, "adquirente_nome")), ("WIN", g(win, "adquirente"))]),
         adquirente_cnpj=pega("adquirente_cnpj", [("DI", g(di, "adquirente_cnpj"))]),
-        despachante=pega("despachante", [("TERRA", g(terra, "despachante")), ("WIN", g(win, "trading")), ("SYNDEX", g(syndex, "despachante"))]),
+        despachante=pega("despachante", [("TERRA", g(terra, "despachante")), ("WIN", g(win, "trading")), ("SYNDEX", g(syndex, "despachante")), ("ALLTIME", g(alltime, "despachante"))]),
         fornecedor_estrangeiro=pega("fornecedor_estrangeiro", [("DUIMP", g(duimp, "exportador")), ("WIN", g(win, "exportador"))]),
         fabricante=pega("fabricante", [("DUIMP", g(duimp, "fabricante"))]),
         pais_origem=pega("pais_origem", [("DUIMP", g(duimp, "pais_procedencia"))]),
