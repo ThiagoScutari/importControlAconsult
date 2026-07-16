@@ -28,11 +28,25 @@ ValorReq = Annotated[float, BeforeValidator(_valor_ou_zero)]
 
 
 class Aviso(BaseModel):
-    """Mensagem de campo não encontrado ou divergência entre documentos."""
+    """Mensagem informativa/pendência (campo ausente, reconciliação, etc.)."""
 
-    tipo: str  # "ausente" | "divergencia"
+    tipo: str  # "ausente" | "info"
     campo: str
     mensagem: str
+
+
+class Divergencia(BaseModel):
+    """Conflito de valor entre documentos para um campo (spec §3 [R2]/[R3]).
+
+    Guarda TODOS os candidatos (fonte + valor), não só o escolhido, para a
+    **conferência navegável**: o operador vê os valores lado a lado e escolhe
+    qual usar. Não há correção automática — a decisão é dele.
+    """
+
+    campo: str
+    candidatos: List[Dict[str, Any]] = Field(default_factory=list)  # [{"fonte", "valor"}]
+    escolhido_fonte: Optional[str] = None
+    escolhido_valor: Any = None
 
 
 class ProcessoExtraido(BaseModel):
@@ -102,10 +116,16 @@ class ProcessoExtraido(BaseModel):
     bl: Optional[str] = None
     chegada: Optional[str] = None
 
+    # Adiantamento do numerário (crédito do Passo 6.2 — spec §1.5 6.2 [R2]).
+    # Total = soma das linhas do fechamento rotuladas "adiantamento".
+    adiantamento_total: ValorOpt = None
+
     # Rastreabilidade
     documentos: List[Dict[str, Any]] = Field(default_factory=list)
     despesas: List[Dict[str, Any]] = Field(default_factory=list)
+    adiantamentos: List[Dict[str, Any]] = Field(default_factory=list)
     avisos: List[Aviso] = Field(default_factory=list)
+    divergencias: List[Divergencia] = Field(default_factory=list)  # conferência navegável
     rastreamento: List[Dict[str, Any]] = Field(default_factory=list)
 
 

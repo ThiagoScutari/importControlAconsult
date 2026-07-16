@@ -134,3 +134,38 @@ def normalizar_espacos(texto: Optional[str]) -> Optional[str]:
     if texto is None:
         return None
     return re.sub(r"\s+", " ", texto).strip()
+
+
+def numero_nf_limpo(valor):
+    """Número da NF-e como **inteiro limpo** — sem separador de milhar nem zeros
+    à esquerda (spec §1.4 [R3]).
+
+    ``"000.002.411"`` → ``"2411"``; ``"2.411"`` → ``"2411"``; já-limpo passa
+    direto; ``None``/``""`` inalterado. O número é copiado para criar a conta no
+    plano de contas e vai na coluna D da Relação — por isso precisa ser o inteiro.
+    """
+    if valor is None or valor == "":
+        return valor
+    digitos = re.sub(r"\D", "", str(valor)).lstrip("0")
+    return digitos or "0"
+
+
+def somar_adiantamentos(*listas):
+    """Soma as linhas do fechamento cujo rótulo contém a raiz ``adiantament``.
+
+    Regra do POP (spec §1.5 6.2 [R2]): totalizar toda entrada rotulada com
+    "adiantamento" (de numerário / de despachante / de pagamento) — é o crédito
+    do Passo 6.2. A **raiz** ``ADIANTAMENT`` (sem a vogal final) casa tanto o
+    acento de "NUMERÁRIO" quanto o OCR do ALL TIME (``ADIANTAMENT0``). A posição
+    varia por layout, então as linhas podem vir em ``despesas`` **ou** em
+    ``creditos``; passe todas as listas relevantes.
+
+    Retorna ``(total, linhas)``; ``total`` é ``None`` quando não há adiantamento.
+    """
+    linhas = []
+    for lista in listas:
+        for item in lista or []:
+            if "ADIANTAMENT" in str(item.get("descricao", "")).upper():
+                linhas.append(item)
+    total = round(sum((x.get("valor") or 0.0) for x in linhas), 2) if linhas else None
+    return total, linhas

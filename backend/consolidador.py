@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from backend.models import Aviso, ProcessoExtraido
+from backend.models import Aviso, Divergencia, ProcessoExtraido
 
 # Campos cuja ausência merece um aviso visível (evita poluir com 30 mensagens).
 _CRITICOS = {"di_duimp", "numero_nf", "valor_nf", "fornecedor_estrangeiro", "processo"}
@@ -56,37 +56,42 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
     terra = _primeiro(por_tipo, "fechamento_terra")
     win = _primeiro(por_tipo, "fechamento_win")
     syndex = _syndex_preferido(por_tipo)
+    alltime = _primeiro(por_tipo, "fechamento_alltime")
     declaracao = duimp or di
-    fechamento = terra or win or syndex
+    fechamento = terra or win or syndex or alltime
 
     avisos: List[Aviso] = []
+    divergencias: List[Divergencia] = []
     rastreamento: List[Dict] = []
 
     def g(doc, campo):
         return doc.get(campo) if doc else None
 
     def pega(campo: str, candidatos: list):
-        """candidatos = [(fonte, valor), ...] em ordem de prioridade."""
-        escolhido = None
-        fonte_escolhida = None
-        for fonte, valor in candidatos:
-            if valor in (None, ""):
-                continue
-            if escolhido is None:
-                escolhido = valor
-                fonte_escolhida = fonte
-                rastreamento.append({"campo": campo, "valor": valor, "fonte": fonte})
-            elif _difere(valor, escolhido):
+        """candidatos = [(fonte, valor), ...] em ordem de prioridade.
+
+        O escolhido é o primeiro não-vazio (prioridade DUIMP/DI > NF > Fechamento).
+        Se algum outro candidato tem valor DISTINTO, registra uma
+        :class:`Divergencia` estruturada (fonte+valor de TODOS) para a conferência
+        navegável — o operador decide qual usar. Extração crua: não concilia.
+        """
+        presentes = [(fonte, valor) for fonte, valor in candidatos if valor not in (None, "")]
+        if not presentes:
+            if campo in _CRITICOS:
                 avisos.append(
-                    Aviso(
-                        tipo="divergencia",
-                        campo=campo,
-                        mensagem=f"{campo}: {fonte}={valor} difere de {fonte_escolhida}={escolhido}",
-                    )
+                    Aviso(tipo="ausente", campo=campo, mensagem=f"{campo} não encontrado nos documentos")
                 )
-        if escolhido is None and campo in _CRITICOS:
-            avisos.append(
-                Aviso(tipo="ausente", campo=campo, mensagem=f"{campo} não encontrado nos documentos")
+            return None
+        fonte_escolhida, escolhido = presentes[0]
+        rastreamento.append({"campo": campo, "valor": escolhido, "fonte": fonte_escolhida})
+        if any(_difere(valor, escolhido) for _, valor in presentes[1:]):
+            divergencias.append(
+                Divergencia(
+                    campo=campo,
+                    candidatos=[{"fonte": f, "valor": v} for f, v in presentes],
+                    escolhido_fonte=fonte_escolhida,
+                    escolhido_valor=escolhido,
+                )
             )
         return escolhido
 
@@ -109,7 +114,7 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
         importador_cnpj=pega("importador_cnpj", [("DUIMP", g(duimp, "importador_cnpj")), ("DI", g(di, "importador_cnpj")), ("NF", g(nf, "emitente_cnpj"))]),
         adquirente_nome=pega("adquirente_nome", [("DI", g(di, "adquirente_nome")), ("WIN", g(win, "adquirente"))]),
         adquirente_cnpj=pega("adquirente_cnpj", [("DI", g(di, "adquirente_cnpj"))]),
-        despachante=pega("despachante", [("TERRA", g(terra, "despachante")), ("WIN", g(win, "trading")), ("SYNDEX", g(syndex, "despachante"))]),
+        despachante=pega("despachante", [("TERRA", g(terra, "despachante")), ("WIN", g(win, "trading")), ("SYNDEX", g(syndex, "despachante")), ("ALLTIME", g(alltime, "despachante"))]),
         fornecedor_estrangeiro=pega("fornecedor_estrangeiro", [("DUIMP", g(duimp, "exportador")), ("WIN", g(win, "exportador"))]),
         fabricante=pega("fabricante", [("DUIMP", g(duimp, "fabricante"))]),
         pais_origem=pega("pais_origem", [("DUIMP", g(duimp, "pais_procedencia"))]),
@@ -139,9 +144,15 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
         navio=pega("navio", [("DUIMP", g(duimp, "navio")), ("DI", g(di, "navio")), ("TERRA", g(terra, "navio"))]),
         bl=pega("bl", [("DUIMP", g(duimp, "bl")), ("DI", g(di, "bl"))]),
         chegada=pega("chegada", [("DUIMP", g(duimp, "chegada")), ("DI", g(di, "chegada"))]),
+        adiantamento_total=pega("adiantamento_total", [
+            ("TERRA", g(terra, "adiantamento_total")), ("WIN", g(win, "adiantamento_total")),
+            ("SYNDEX", g(syndex, "adiantamento_total")), ("ALLTIME", g(alltime, "adiantamento_total")),
+        ]),
         documentos=list(documentos),
         despesas=list(fechamento.get("despesas", [])) if fechamento else [],
+        adiantamentos=list(fechamento.get("adiantamentos", [])) if fechamento else [],
         avisos=avisos,
+        divergencias=divergencias,
         rastreamento=rastreamento,
     )
 

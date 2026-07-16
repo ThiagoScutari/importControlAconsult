@@ -49,7 +49,7 @@ class TestConsolidacao:
     def test_duimp_mais_nf_gera_processo_1159(self, proc_1159):
         assert proc_1159.processo == "1159"
         assert proc_1159.di_duimp == "26BR0000380790-9"
-        assert proc_1159.numero_nf == "000.000.769"
+        assert proc_1159.numero_nf == "769"  # [R3] inteiro limpo (sem milhar/zeros)
         assert proc_1159.valor_nf == pytest.approx(153280.85, abs=0.01)
         assert proc_1159.fob_rs == pytest.approx(79882.82, abs=0.01)
         assert proc_1159.chave_nfe == "42260457345180000160550010000007691435300822"

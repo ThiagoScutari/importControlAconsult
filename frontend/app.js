@@ -54,6 +54,16 @@ const CAMPOS_MIDDLEWARE = [
   ["matriz_filial", "Matriz/Filial", "text"],
 ];
 
+// Rótulo amigável por campo (para as divergências). Base = campos do formulário;
+// extras cobrem campos fora do form (ex.: importador_nome).
+const ROTULO_CAMPO = Object.fromEntries(CAMPOS_PROCESSO);
+Object.assign(ROTULO_CAMPO, {
+  importador_nome: "Importador (nome)",
+  importador_cnpj: "Importador (CNPJ)",
+  adquirente_nome: "Adquirente (nome)",
+  adquirente_cnpj: "Adquirente (CNPJ)",
+});
+
 // Rótulos amigáveis das categorias de linha do fechamento.
 const CATEGORIA_LABEL = {
   despesa_processo: "Despesa do processo (entra no lançamento)",
@@ -159,9 +169,13 @@ function renderConferencia(dados) {
     else mid.append(campoInput("mid__" + chave, rotulo, valor));
   });
 
+  renderDivergencias(dados.divergencias);
   renderContas(sug.papeis || {});
   renderClassificacao(sug.despesas || []);
-  renderAvisos(dados.avisos, dados.nao_reconhecidos);
+  renderAvisos(dados.avisos, dados.nao_reconhecidos, dados.anexos, {
+    total: dados.adiantamento_total,
+    linhas: dados.adiantamentos,
+  });
 
   $("#passo-conferencia").scrollIntoView({ behavior: "smooth" });
 }
@@ -190,7 +204,11 @@ function renderContas(papeis) {
   chaves.forEach((papel) => {
     const tr = el("tr");
     tr.append(el("td", {}, papel));
-    tr.append(el("td", {}, el("input", { id: "conta__" + papel, type: "text", value: papeis[papel] || "" })));
+    // [R3] contas sem default (ex.: conta do processo/fornecedor) vêm em branco —
+    // o operador informa; o placeholder sinaliza a obrigatoriedade.
+    const attrs = { id: "conta__" + papel, type: "text", value: papeis[papel] || "" };
+    if (!papeis[papel]) attrs.placeholder = "informe o código";
+    tr.append(el("td", {}, el("input", attrs)));
     tbody.append(tr);
   });
   tbody.dataset.papeis = JSON.stringify(chaves);
@@ -224,18 +242,118 @@ function valorTexto(v) {
   return String(v);
 }
 
-function renderAvisos(avisos, naoReconhecidos) {
+function renderAvisos(avisos, naoReconhecidos, anexos, adiantamento) {
   const box = $("#avisos");
-  const itens = [];
-  (avisos || []).forEach((a) => itens.push({ tipo: a.tipo, msg: a.mensagem }));
-  (naoReconhecidos || []).forEach((n) => itens.push({ tipo: "ausente", msg: `Arquivo ignorado: ${n.arquivo} (${n.motivo})` }));
-  if (itens.length === 0) { box.classList.add("hidden"); return; }
-  box.classList.remove("hidden");
   box.innerHTML = "";
-  box.append(el("h4", {}, `⚠ ${itens.length} aviso(s)`));
-  const ul = el("ul");
-  itens.forEach((i) => ul.append(el("li", { class: i.tipo }, i.msg)));
-  box.append(ul);
+  const problemas = [];
+  const infos = [];
+  (avisos || []).forEach((a) =>
+    (a.tipo === "info" ? infos : problemas).push({ tipo: a.tipo, msg: a.mensagem })
+  );
+  (naoReconhecidos || []).forEach((n) =>
+    problemas.push({ tipo: "ausente", msg: `Arquivo ignorado: ${n.arquivo} (${n.motivo})` })
+  );
+  // Anexos/referência: reconhecidos e ignorados com calma — NÃO são avisos.
+  const refs = (anexos || []).map((n) => `${n.arquivo} — ${n.motivo}`);
+
+  // Adiantamento capturado (crédito do Passo 6.2) — validação na conferência.
+  if (adiantamento && adiantamento.total != null && adiantamento.total !== "") {
+    const linhas = (adiantamento.linhas || [])
+      .map((a) => `${a.descricao}: ${valorTexto(a.valor)}`)
+      .join(" + ");
+    infos.push({
+      tipo: "info",
+      msg: `Adiantamento capturado: R$ ${valorTexto(adiantamento.total)}${linhas ? " (" + linhas + ")" : ""}`,
+    });
+  }
+
+  if (problemas.length === 0 && refs.length === 0 && infos.length === 0) {
+    box.classList.add("hidden");
+    return;
+  }
+  box.classList.remove("hidden");
+
+  if (problemas.length) {
+    box.append(el("h4", {}, `⚠ ${problemas.length} aviso(s)`));
+    const ul = el("ul");
+    problemas.forEach((i) => ul.append(el("li", { class: i.tipo }, i.msg)));
+    box.append(ul);
+  }
+  if (infos.length) {
+    const ul = el("ul");
+    infos.forEach((i) => ul.append(el("li", { class: "info" }, i.msg)));
+    box.append(ul);
+  }
+  if (refs.length) {
+    box.append(el("h4", { class: "info" }, `ℹ ${refs.length} anexo(s)/referência (reconhecidos, ignorados)`));
+    const ul = el("ul");
+    refs.forEach((r) => ul.append(el("li", { class: "anexo" }, r)));
+    box.append(ul);
+  }
+}
+
+// ----- Conferência navegável de divergências (diff + seleção) -----
+// Quando os documentos discordam de um campo, o operador vê os valores lado a
+// lado e ESCOLHE qual usar; a escolha vai para o campo de saída e para a Saída A
+// rastreável. Não há correção automática (spec §3 [R2]/[R3]).
+function renderDivergencias(divs) {
+  const box = $("#divergencias");
+  box.innerHTML = "";
+  if (!divs || divs.length === 0) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  box.append(el("h3", {}, `⚖ Divergências entre documentos (${divs.length})`));
+  box.append(el("p", { class: "sub" },
+    "Os documentos discordam nestes campos. Selecione qual valor usar — ele vai para o campo abaixo e para a Saída A rastreável."));
+  divs.forEach((d, i) => box.append(cardDivergencia(d, i)));
+}
+
+function cardDivergencia(d, idx) {
+  const card = el("div", { class: "diverg-card" });
+  card.append(el("h4", {}, ROTULO_CAMPO[d.campo] || d.campo));
+  const opcoes = el("div", { class: "diverg-opcoes" });
+  (d.candidatos || []).forEach((c, j) => {
+    const opt = el("label", { class: "diverg-opt" });
+    const radio = el("input", { type: "radio", name: `div__${idx}` });
+    if (j === 0) radio.checked = true; // candidato[0] = escolhido por prioridade
+    radio.addEventListener("change", () => aplicarEscolha(d.campo, c.fonte, c.valor, opt));
+    opt.append(
+      radio,
+      el("span", { class: "diverg-fonte" }, c.fonte),
+      el("span", { class: "diverg-valor" }, valorTexto(c.valor))
+    );
+    opcoes.append(opt);
+  });
+  card.append(opcoes);
+  return card;
+}
+
+function aplicarEscolha(campo, fonte, valor, optEl) {
+  // 1) escreve no campo de saída do formulário (quando existe input p/ o campo)
+  const inp = $("#proc__" + campo);
+  if (inp) inp.value = valorTexto(valor);
+  // 2) atualiza o objeto do processo — cobre campos fora do formulário (ex.: importador_nome)
+  if (estado.processo) estado.processo[campo] = valor;
+  // 3) registra a escolha na rastreabilidade (Saída A rastreável)
+  atualizarRastreamento(campo, fonte, valor);
+  // 4) realce visual do card e do campo escolhido
+  if (optEl && optEl.parentElement) {
+    [...optEl.parentElement.children].forEach((o) => o.classList.remove("escolhido"));
+    optEl.classList.add("escolhido");
+  }
+  if (inp) {
+    inp.classList.add("campo-destacado");
+    inp.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => inp.classList.remove("campo-destacado"), 1500);
+  }
+}
+
+function atualizarRastreamento(campo, fonte, valor) {
+  if (!estado.processo) return;
+  const r = estado.processo.rastreamento || (estado.processo.rastreamento = []);
+  const marca = `${fonte} (escolha do operador)`;
+  const ent = r.find((x) => x.campo === campo);
+  if (ent) { ent.valor = valor; ent.fonte = marca; }
+  else r.push({ campo, valor, fonte: marca });
 }
 
 // ----- Gerar -----
@@ -282,6 +400,49 @@ function coletarMiddleware() {
   return m;
 }
 
+// ----- Saída D: atualizar a Relação das Importações (.xlsx) -----
+$("#relacao-file").addEventListener("change", (e) => {
+  $("#btn-relacao").disabled = !(e.target.files && e.target.files.length);
+});
+$("#btn-relacao").addEventListener("click", atualizarRelacao);
+
+async function atualizarRelacao() {
+  const status = $("#relacao-status");
+  const arquivo = $("#relacao-file").files[0];
+  if (!arquivo) { status.textContent = "✕ selecione o .xlsx da Relação"; return; }
+  status.textContent = "Atualizando…";
+  try {
+    // mesmo contrato do /generate (processo + middleware editados), como campo de form
+    const payload = JSON.stringify({ processo: coletarProcesso(), middleware: coletarMiddleware() });
+    const fd = new FormData();
+    fd.append("arquivo", arquivo);
+    fd.append("payload", payload);
+    const resp = await fetch("/relacao", { method: "POST", body: fd });
+    if (!resp.ok) {
+      let msg = "Falha ao atualizar (" + resp.status + ")";
+      try { const j = await resp.json(); if (j.erro) msg = j.erro; } catch (_) {}
+      throw new Error(msg);
+    }
+    baixarBlob(await resp.blob(),
+      `relacao_atualizada_${(coletarProcesso().processo || "sem_ref").replace(/\W+/g, "_")}.xlsx`);
+    status.textContent = "✓ Relação atualizada baixada";
+  } catch (err) {
+    status.textContent = "✕ " + err.message;
+  }
+}
+
+// download utilitário compartilhado (zip das saídas e xlsx da Relação)
+function baixarBlob(blob, nome) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nome;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 async function gerar() {
   const status = $("#gerar-status");
   status.textContent = "Gerando…";
@@ -293,15 +454,8 @@ async function gerar() {
       body,
     });
     if (!resp.ok) throw new Error("Falha ao gerar (" + resp.status + ")");
-    const blob = await resp.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `saidas_processo_${(coletarProcesso().processo || "sem_ref").replace(/\W+/g, "_")}.zip`;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    baixarBlob(await resp.blob(),
+      `saidas_processo_${(coletarProcesso().processo || "sem_ref").replace(/\W+/g, "_")}.zip`);
     status.textContent = "✓ arquivos baixados";
   } catch (err) {
     status.textContent = "✕ " + err.message;

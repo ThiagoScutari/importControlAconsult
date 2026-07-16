@@ -7,7 +7,7 @@ import re
 import zipfile
 from typing import List
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -25,10 +25,11 @@ from backend.depara import (
     sugerir_despesa,
     sugerir_fornecedor,
 )
-from backend.detector import TipoDocumento, detectar_tipo
+from backend.detector import LIMIAR_TEXTO_MINIMO, TipoDocumento, detectar_tipo
 from backend.extractors import (
     di,
     duimp,
+    fechamento_alltime,
     fechamento_syndex,
     fechamento_terra,
     fechamento_win,
@@ -36,6 +37,7 @@ from backend.extractors import (
 )
 from backend.models import GerarRequest
 from backend.outputs import (
+    append_relacao,
     gerar_saida_a,
     gerar_saida_a_rastreavel,
     gerar_saida_b,
@@ -51,6 +53,7 @@ EXTRATORES = {
     TipoDocumento.FECHAMENTO_TERRA: fechamento_terra,
     TipoDocumento.FECHAMENTO_WIN: fechamento_win,
     TipoDocumento.FECHAMENTO_SYNDEX: fechamento_syndex,
+    TipoDocumento.FECHAMENTO_ALLTIME: fechamento_alltime,
 }
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -58,24 +61,70 @@ FRONTEND = os.path.join(ROOT, "frontend")
 
 app = FastAPI(title="Extrator de Importação — Aconsult (mockup)")
 
+# Limite de upload no app (defesa em profundidade; spec §13). O nginx já corta
+# uploads grandes (client_max_body_size), mas o app também recusa por conta —
+# útil no Docker sem proxy. Responde 413 quando o Content-Length passa do teto;
+# uploads chunked (sem Content-Length) ficam a cargo do proxy (ok p/ o mockup).
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB (alinhar com o client_max_body_size do nginx)
+
+
+@app.middleware("http")
+async def limite_tamanho_upload(request, call_next):
+    cl = request.headers.get("content-length")
+    if cl is not None:
+        try:
+            if int(cl) > MAX_UPLOAD_BYTES:
+                return JSONResponse(
+                    status_code=413,
+                    content={"erro": f"upload excede o limite de {MAX_UPLOAD_BYTES // (1024 * 1024)} MB"},
+                )
+        except ValueError:
+            pass  # header malformado: segue e falha adiante normalmente
+    return await call_next(request)
+
 
 @app.post("/extract")
 async def extract(arquivos: List[UploadFile] = File(...)):
     """Recebe 1..N PDFs de um processo: detecta, extrai e consolida."""
     documentos = []
     nao_reconhecidos = []
+    anexos = []  # anexos/referência reconhecidos e ignorados com calma (spec §3 [R3])
     for arq in arquivos:
         conteudo = await arq.read()
         try:
             texto = extract_text(conteudo)
         except Exception as exc:  # PDF ilegível / corrompido
-            nao_reconhecidos.append({"arquivo": arq.filename, "motivo": str(exc)})
+            nao_reconhecidos.append({"arquivo": arq.filename, "motivo": f"PDF ilegível: {exc}"})
             continue
-        tipo = detectar_tipo(texto)
+
+        # Detectar/extrair blindados: uma exceção em um arquivo não pode derrubar
+        # o /extract inteiro — o arquivo problemático é isolado e reportado.
+        try:
+            tipo = detectar_tipo(texto)
+        except Exception as exc:
+            nao_reconhecidos.append({"arquivo": arq.filename, "motivo": f"falha ao classificar: {exc}"})
+            continue
+
+        if tipo == TipoDocumento.ANEXO_REFERENCIA:
+            eh_imagem = len((texto or "").strip()) < LIMIAR_TEXTO_MINIMO
+            anexos.append({
+                "arquivo": arq.filename,
+                "motivo": "anexo/referência (imagem)" if eh_imagem else "anexo/referência",
+            })
+            continue
         if tipo == TipoDocumento.DESCONHECIDO:
             nao_reconhecidos.append({"arquivo": arq.filename, "motivo": "tipo não reconhecido"})
             continue
-        dados = EXTRATORES[tipo].extrair(texto)
+
+        extrator = EXTRATORES.get(tipo)
+        if extrator is None:  # tipo suportado sem extrator registrado (defensivo)
+            nao_reconhecidos.append({"arquivo": arq.filename, "motivo": f"sem extrator para {tipo.value}"})
+            continue
+        try:
+            dados = extrator.extrair(texto)
+        except Exception as exc:  # regex/parse quebrou neste arquivo — isola e segue
+            nao_reconhecidos.append({"arquivo": arq.filename, "motivo": f"falha na extração ({tipo.value}): {exc}"})
+            continue
         dados["_arquivo"] = arq.filename
         documentos.append(dados)
 
@@ -84,6 +133,7 @@ async def extract(arquivos: List[UploadFile] = File(...)):
 
     payload = processo.model_dump()
     payload["nao_reconhecidos"] = nao_reconhecidos
+    payload["anexos"] = anexos
     payload["sugestoes_middleware"] = sugestoes
     return JSONResponse(payload)
 
@@ -173,6 +223,43 @@ async def generate(req: GerarRequest):
         content=buf.getvalue(),
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{nome_zip}"'},
+    )
+
+
+XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+@app.post("/relacao")
+async def relacao(arquivo: UploadFile = File(...), payload: str = Form(...)):
+    """Saída D (spec §6.4): recebe a Relação atual da empresa (.xlsx), insere UMA
+    linha do processo sob o bloco do ano e devolve o arquivo atualizado.
+
+    O ``payload`` é o mesmo ``GerarRequest`` (processo + middleware) do /generate,
+    enviado como campo de formulário ao lado do upload da planilha.
+    """
+    try:
+        req = GerarRequest.model_validate_json(payload)
+    except Exception as exc:
+        return JSONResponse(status_code=422, content={"erro": f"payload inválido: {exc}"})
+
+    processo = req.processo
+    if req.middleware.tipo_importacao:
+        processo.tipo_importacao = req.middleware.tipo_importacao
+
+    conteudo = await arquivo.read()
+    try:
+        atualizado = append_relacao(conteudo, processo, req.middleware)
+    except Exception as exc:  # planilha inesperada / corrompida — não derruba a rota
+        return JSONResponse(
+            status_code=400,
+            content={"erro": f"não foi possível atualizar a Relação: {exc}"},
+        )
+
+    nome = f"{_slug(processo.processo)}_relacao_atualizada.xlsx"
+    return Response(
+        content=atualizado,
+        media_type=XLSX_MEDIA,
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
     )
 
 

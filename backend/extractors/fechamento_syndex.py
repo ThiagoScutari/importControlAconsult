@@ -14,7 +14,7 @@ import re
 from typing import Dict, List
 
 from backend.detector import CNPJ_SYNDEX, TipoDocumento
-from backend.pdf_utils import buscar, buscar_valor, parse_valor_br
+from backend.pdf_utils import buscar, buscar_valor, parse_valor_br, somar_adiantamentos
 
 # Uma linha de lançamento: data, descrição (+complemento), valor BR, tipo C/D, resto (nota).
 _LINHA = re.compile(
@@ -74,6 +74,11 @@ def extrair(texto: str) -> Dict:
     despesas, creditos = _lancamentos(texto)
     d["despesas"] = despesas
     d["creditos"] = creditos
+
+    # Adiantamento (crédito do Passo 6.2): no SYNDEX vem como lançamento tipo "C"
+    # ("ADIANTAMENTO DE NUMERÁRIO"), então mora em `creditos`. Soma todas as
+    # entradas rotuladas "adiantamento" (numerário + complemento). [F1-04]
+    d["adiantamento_total"], d["adiantamentos"] = somar_adiantamentos(despesas, creditos)
 
     d["total_debitos"] = buscar_valor(r"Total de D[ée]bitos:\s*R\$\s*([\d.,]+)", texto)
     d["total_creditos"] = buscar_valor(r"Total de Cr[ée]ditos:\s*R\$\s*([\d.,]+)", texto)

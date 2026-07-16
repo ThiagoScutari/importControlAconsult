@@ -42,20 +42,24 @@ class PapelConta(str, Enum):
     BANCO = "banco"
 
 
-# Códigos-exemplo observados no POP (spec §1.5). Confirmar por cliente; o
-# middleware pode sobrescrever qualquer entrada. Papéis "a semear" ficam vazios
-# de propósito (o operador informa) — nunca inventar um código.
+# Plano de contas por papel. O middleware/de-para POR EMPRESA sobrescreve qualquer
+# entrada. **`[R3]` Regra "em branco + aviso" (spec §1.4):** o sistema NÃO chuta
+# número de conta. As contas que variam por empresa ficam VAZIAS — o de-para
+# pré-preenche as conhecidas e, onde não houver, o campo fica em branco, emite
+# aviso e a partida que a usa NÃO é gerada. Defaults hardcoded `1177` (fornecedor)
+# e `1648` (conta do processo) foram REMOVIDOS. `1633` (Importações em Andamento)
+# permanece por ser estável; 362/973/370 são contas-padrão do POP (Passos 6.1/8).
 PLANO_CONTAS_PADRAO: Dict[PapelConta, str] = {
-    PapelConta.IMPORTACOES_EM_ANDAMENTO: "1633",
-    PapelConta.CONTA_PROCESSO: "1648",
-    PapelConta.FORNECEDOR_ESTRANGEIRO: "1177",
-    PapelConta.ADIANTAMENTO_DESPACHANTE: "",   # a semear (operador)
-    PapelConta.DESPACHANTE: "",                 # a semear (operador)
-    PapelConta.ESTOQUE: "",                     # a semear (operador)
+    PapelConta.IMPORTACOES_EM_ANDAMENTO: "1633",  # estável (spec §1.4 [R3])
+    PapelConta.CONTA_PROCESSO: "",                 # [R3] manual — criada antes no plano de contas
+    PapelConta.FORNECEDOR_ESTRANGEIRO: "",         # [R3] manual — varia por empresa (de-para)
+    PapelConta.ADIANTAMENTO_DESPACHANTE: "",       # a semear (operador)
+    PapelConta.DESPACHANTE: "",                     # a semear (operador)
+    PapelConta.ESTOQUE: "",                         # a semear (operador)
     PapelConta.SERVICO_TERCEIROS: "362",
     PapelConta.VARIACAO_CAMBIAL_ATIVA: "973",
     PapelConta.VARIACAO_CAMBIAL_PASSIVA: "370",
-    PapelConta.BANCO: "",                       # a semear (operador)
+    PapelConta.BANCO: "",                           # a semear (operador)
 }
 
 # Históricos-modelo do Domínio observados no POP (spec §1.5).

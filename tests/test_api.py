@@ -9,6 +9,15 @@ from backend.main import app
 
 client = TestClient(app)
 
+# de-para POR EMPRESA que o operador preenche. [R3] (Item 5): sem estes números
+# as contas do processo/fornecedor ficam em branco e as partidas dos Passos
+# 5/6.2 NÃO são geradas — então os testes de round-trip precisam semeá-las.
+_CONTAS = {
+    "conta_processo": "1648",
+    "fornecedor_estrangeiro": "1177",
+    "adiantamento_despachante": "9101",
+}
+
 
 def _upload(asset_files, *nomes):
     arquivos = []
@@ -24,7 +33,7 @@ def test_extract_consolida_processo_1159(asset_files):
     dados = resp.json()
     assert dados["processo"] == "1159"
     assert dados["di_duimp"] == "26BR0000380790-9"
-    assert dados["numero_nf"] == "000.000.769"
+    assert dados["numero_nf"] == "769"  # [R3] inteiro limpo
     assert "sugestoes_middleware" in dados
 
 
@@ -37,7 +46,7 @@ def test_extract_ignora_arquivo_irreconhecivel(asset_files):
 
 def test_generate_devolve_zip_com_saidas(asset_files):
     extraido = client.post("/extract", files=_upload(asset_files, "di870", "terra")).json()
-    body = {"processo": extraido, "middleware": {"incluir_saida_c": True}}
+    body = {"processo": extraido, "middleware": {"incluir_saida_c": True, "contas_override": _CONTAS}}
     resp = client.post("/generate", json=body)
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "application/zip"
@@ -62,7 +71,7 @@ def test_extract_sy1453_reforma_e_classificacao(asset_files):
     resp = client.post("/extract", files=_upload(asset_files, "duimp_sy1453", "nf_sy1453", "syndex_fechamento"))
     dados = resp.json()
     assert dados["di_duimp"] == "26BR0000258971-1"
-    assert dados["numero_nf"] == "000.002.411"
+    assert dados["numero_nf"] == "2411"  # [R3] inteiro limpo
     assert dados["resultado_rs"] == pytest.approx(276688.26, abs=0.01)
     assert dados["cbs"] == pytest.approx(3018.30, abs=0.01)
     sm = dados["sugestoes_middleware"]
@@ -76,7 +85,7 @@ def test_generate_sy1453_saida_b_respeita_guard(asset_files):
     extraido = client.post(
         "/extract", files=_upload(asset_files, "duimp_sy1453", "nf_sy1453", "syndex_fechamento")
     ).json()
-    body = {"processo": extraido, "middleware": {"contas_override": {"adiantamento_despachante": "9101"}}}
+    body = {"processo": extraido, "middleware": {"contas_override": _CONTAS}}
     resp = client.post("/generate", json=body)
     assert resp.status_code == 200
     zf = zipfile.ZipFile(io.BytesIO(resp.content))
@@ -101,7 +110,7 @@ def test_round_trip_nao_corrompe_decimais(asset_files):
     proc = client.post(
         "/extract", files=_upload(asset_files, "duimp_sy1453", "nf_sy1453", "syndex_fechamento")
     ).json()
-    resp = client.post("/generate", json={"processo": proc, "middleware": {}})
+    resp = client.post("/generate", json={"processo": proc, "middleware": {"contas_override": _CONTAS}})
     zf = zipfile.ZipFile(io.BytesIO(resp.content))
 
     b = _saida(zf, "saida_B_lancamentos_dominio.csv").strip().splitlines()
@@ -129,7 +138,7 @@ def test_round_trip_valores_como_string_do_formulario(asset_files):
     proc["invoice_usd"] = "52403.08"
     proc["tx_di"] = "5.28"
     proc["resultado_rs"] = "276688.26"
-    resp = client.post("/generate", json={"processo": proc, "middleware": {}})
+    resp = client.post("/generate", json={"processo": proc, "middleware": {"contas_override": _CONTAS}})
     zf = zipfile.ZipFile(io.BytesIO(resp.content))
     b = _saida(zf, "saida_B_lancamentos_dominio.csv")
     assert "382358,58" in b and "276688,26" in b
@@ -150,11 +159,12 @@ def test_round_trip_cambio_string_nao_corrompe_variacao(asset_files):
     zf = zipfile.ZipFile(io.BytesIO(resp.content))
     b = _saida(zf, "saida_B_lancamentos_dominio.csv")
     linha = next(l for l in b.splitlines() if "VARIA" in l.upper())
-    # 52403,08 × 5,28 − 52403,08 × 5,10 = 9.432,55 (sem corrupção do decimal)
+    # valor da partida = |variação|; magnitude 9.432,55 (sem corrupção do decimal)
     assert linha.split(";")[3] == "9432,55"
     a = dict(zip(*[r.split(";") for r in _saida(zf, "saida_A_extracao.csv").splitlines()[:2]]))
     assert a["VLR PG R$"] == "267.255,71"
-    assert a["Variação"] == "9.432,55"
+    # [R3] variação = campo 6 − campo 7 = 267.255,71 − 276.688,26 = -9.432,55 (negativa)
+    assert a["Variação"] == "-9.432,55"
 
 
 def test_generate_avisa_conta_faltante(asset_files):
@@ -175,3 +185,16 @@ def test_index_serve_html():
     resp = client.get("/")
     assert resp.status_code == 200
     assert "Extrator de Importação" in resp.text
+
+
+def test_upload_acima_do_limite_recusado_413():
+    """[F1-10] Limite de upload no app: Content-Length acima do teto -> 413."""
+    from backend.main import MAX_UPLOAD_BYTES
+
+    resp = client.post(
+        "/extract",
+        headers={"content-length": str(MAX_UPLOAD_BYTES + 1)},
+        content=b"x",
+    )
+    assert resp.status_code == 413
+    assert "limite" in resp.json()["erro"].lower()

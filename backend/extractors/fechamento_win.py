@@ -5,7 +5,13 @@ import re
 from typing import Dict, List
 
 from backend.detector import CNPJ_WIN, TipoDocumento
-from backend.pdf_utils import buscar, buscar_valor, normalizar_espacos, parse_valor_br
+from backend.pdf_utils import (
+    buscar,
+    buscar_valor,
+    normalizar_espacos,
+    parse_valor_br,
+    somar_adiantamentos,
+)
 
 # Descrições que são apenas seções/subtotais (não são despesas reais)
 _IGNORAR = re.compile(
@@ -69,5 +75,9 @@ def extrair(texto: str) -> Dict:
     d["despesas"] = _despesas(texto)
     d["total"] = buscar_valor(r"\bTOTAL \(R\$\)\s*([\d.,]+)", texto)
     d["retencoes"] = buscar_valor(r"RETEN[ÇC][ÕO]ES\s*([\d.,]+)", texto)
+
+    # Adiantamento (crédito do Passo 6.2): o layout WIN pode não trazer a linha;
+    # nesse caso total = None (o operador informa no middleware). [F1-04]
+    d["adiantamento_total"], d["adiantamentos"] = somar_adiantamentos(d["despesas"])
 
     return d

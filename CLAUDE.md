@@ -53,7 +53,9 @@ Number formatting is locale-critical: `fmt_br` produces human `1.234,56`; `fmt_d
 
 ## Conventions specific to this codebase
 
-- **Brazilian formats throughout.** Values are `1.234,56` (dot=thousands, comma=decimal) — always parse via `pdf_utils.parse_valor_br`, never `float()` directly. Dates stay as `dd/mm/aaaa` strings; do not convert to serial/ISO.
+- **Brazilian formats throughout.** Values are `1.234,56` (dot=thousands, comma=decimal). Dates stay as `dd/mm/aaaa` strings; do not convert to serial/ISO.
+- **Two parsers, two jobs — never cross them.** `pdf_utils.parse_valor_br` is **exclusively** for raw PDF text (where `.` is a thousands separator). `pdf_utils.coerta_valor` is the **only** place a value coming from a request/model is coerced (form round-trip): there a `.` is a thousands separator *only* when a `,` decimal is present, so the JS float string `"382358.58"` is not mangled into 38 million. **Never apply `parse_valor_br` to request/model data**, and never re-parse a value that was already a `float`. Numeric model fields use the `ValorOpt`/`ValorReq` annotated types (which run `coerta_valor`).
+- **Every value that crosses the form↔backend boundary needs a round-trip test** (`/extract → edit → /generate`), not just an extraction test. Extraction tests pass while the round-trip silently corrupts — that is exactly the gap that let the decimal bug through. When adding a numeric field, extend the round-trip tests in `test_api.py`.
 - **Never break on a missing document.** A process may be DUIMP+NF only, or DI+Fechamento only. Extractors and the consolidator must tolerate absent types — return `None`/empty and record an `Aviso` instead of raising.
 - **Missing field → `None` + an aviso, never a fabricated value.**
 - Three despachante closing layouts are supported: **TERRA** (`05.989.453/0001-06`), **WIN** (`26.316.473/0002-77`), **SYNDEX** (`02.286.106/0002-00`). Fechamentos return expenses as a list of `{descricao, valor, vencimento?, tipo}`. `fechamento_syndex` is anchored on **labels** (not token indices) — do not reintroduce the positional-token fragility of TERRA/WIN.

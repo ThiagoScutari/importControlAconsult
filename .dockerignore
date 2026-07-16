@@ -1,0 +1,44 @@
+# Mantém a imagem enxuta e o build determinístico. Só backend/, frontend/ e
+# requirements.txt entram (ver Dockerfile). Tudo abaixo é irrelevante em runtime.
+
+# Git / CI
+.git
+.gitignore
+.claude
+
+# Caches e bytecode Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Ambientes virtuais
+.venv/
+venv/
+env/
+
+# Testes e fixtures — o app NÃO usa assets/ em runtime (são só fixtures dos
+# testes); assets/corpus sozinho tem ~20 MB. Fora da imagem.
+tests/
+assets/
+
+# Documentação e afins (não vão para runtime)
+docs/
+*.md
+README.html
+spec.md
+pytest.ini
+
+# Artefatos de deploy (não precisam entrar na própria imagem)
+Dockerfile
+.dockerignore
+
+# Temporários / SO / editores
+_pdfdump/
+scratchpad/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
