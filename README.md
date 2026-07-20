@@ -48,8 +48,10 @@ O fluxo completo está ilustrado na imagem **`docs/imagem.png`**:
 
 O resultado são três arquivos (explicados na seção 5).
 
-> **Importante:** nesta etapa fazemos **extração crua** — apenas lemos os dados.
-> Não comparamos divergências entre documentos nem tratamos câmbio.
+> **Importante:** o foco desta etapa é a **extração** dos dados. Quando há
+> **divergência** entre documentos, o sistema a **sinaliza** e deixa o operador
+> **navegar e escolher** o valor (conferência navegável); os campos de **câmbio**
+> também são conferidos, e a variação cambial é calculada a partir deles.
 
 ---
 
@@ -169,12 +171,15 @@ Exemplo de linha gerada:
 - Camada **Middleware** (operador confere e completa) com **de-para**.
 - **Validação de despesas do fechamento:** rubricas recorrentes/obrigatórias +
   reconciliação (Σ despesas == TOTAL; numerário − total == saldo), com avisos ao operador.
+- **Conferência navegável de divergências** entre documentos (diff + seleção do valor)
+  e **campos de câmbio** para conferência, com a variação cambial calculada a partir deles.
 - Geração das **Saídas A, B e C**.
 
 **NÃO está no escopo (por enquanto):**
-- **Conciliação / validação de divergências** entre DI/DUIMP, NF e Fechamento —
-  aqui é só **extração crua** (divergências são apenas *sinalizadas* em avisos).
-- **Câmbio e variação cambial**.
+- **Conciliação automática que decide sozinha** as divergências — a navegação e a
+  seleção do valor existem; a *correção/decisão automática* não.
+- **Parser do contrato de câmbio real** — o câmbio é **entrada manual** (middleware)
+  e a variação é calculada a partir dele; o contrato em si ainda não é lido.
 - Outros layouts de fechamento além de TERRA, WIN, SYNDEX, ALL TIME e CONNECTA.
 - **OCR** de documentos escaneados (os exemplos têm camada de texto).
 - Integração automática com o Domínio — a importação segue **manual** (anexar o arquivo).
