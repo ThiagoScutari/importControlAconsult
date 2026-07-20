@@ -1,9 +1,11 @@
 # Spec — Extrator de Dados de Importação → Domínio
 ### Contabilidade Aconsult · Mockup de validação
 
-**Versão:** 0.4 (decisões confirmadas + achados da inspeção de código — substitui a 0.3)
-**Data:** 2026-07-13
+**Versão:** 0.5 (CONNECTA + validação de despesas — substitui a 0.4)
+**Data:** 2026-07-20
 **Etapa:** Validação de fluxo, extração e formato de saída. **Não** é desenvolvimento de produção. Nesta rodada o mockup vai ao ar em **VPS com URL própria** para a Larissa testar extração/exportação e dar feedback.
+
+> **Registro de revisão `[R4]` (2026-07-20):** CONNECTA como **5º layout de fechamento**; validação de **despesas recorrentes/obrigatórias** e **reconciliação** (Σ despesas == TOTAL; numerário − total == saldo). Mudanças marcadas com `[R4]`.
 
 > **Registro de revisão `[R3]` (2026-07-13):** decisões do arquiteto após a inspeção de código do Claude Code. Confirmado: (1) pinar deps + endurecer detector + **construir parser ALL TIME na Fatia 1**; (2) contas **em branco + aviso** (sem default chutado; de-para pré-preenche as conhecidas); (3) **conferência navegável (diff + seleção) entra na Fatia 1**. Achados de inspeção incorporados: parser ALL TIME **inexistia** no código; Passo 7 (pagamento via banco) **não implementado**; sinal da variação **invertido** vs. a planilha real; anexos/imagens caíam em "tipo não reconhecido". Entrega dividida em **Fatia 1** (destrava o teste da Larissa) e **Fatia 2** (ver Seção 13). Mudanças marcadas com `[R3]`.
 **Objetivo:** provar que conseguimos (1) extrair os dados dos documentos de importação de um processo e (2) gerar os artefatos de saída (extração estruturada + lançamentos no layout do Domínio), validando o fluxo com a key user (Larissa) antes de investir em desenvolvimento.
@@ -86,6 +88,12 @@ Estrutura D/C fixa por passo (regra de negócio; contas específicas variam por 
 - **6.2.2** Se a despesa já tem NF alocada → baixa `D` Fornecedor.
 - **6.2.4** A diferença entre despesas do numerário e o valor efetivo do processo vai para a conta do despachante (credora ou devedora).
 - **6.2.5** Saldo remanescente na conta do processo → transferência para **Estoque**: se **positivo** `D` Estoque `C` Processo; se **negativo** `D` Processo `C` Estoque. Histórico: `fechamento de processo #C` (ou `#D`).
+- **`[R4]` Validação de despesas (conferência pós-parse, derivada de 6.2) — implementado.** Encerra o "despesa some em silêncio": uma despesa que o parser não capturar deixa de desaparecer sem rastro. Roda na **consolidação**, só quando há fechamento (não polui processos DUIMP+NF).
+  - **Conjunto canônico de rubricas RECORRENTES**, com flag `obrigatória`:
+    - **Obrigatórias:** II, IPI, PIS-Import., COFINS-Import., Siscomex, ICMS import., frete internacional/marítimo, AFRMM, despacho/honorários.
+    - **Recorrentes não-obrigatórias:** armazenagem, levante, pesagem, emissão de LI/licença, tarifa bancária, IOF.
+  - **Reconciliação:** Σ despesas == **TOTAL** do fechamento; e **numerário − TOTAL == SALDO**.
+  - **Avisos gerados** (não bloqueiam; para o operador conferir): `despesa_divergente` (Σ ≠ TOTAL), `numerario_divergente` (numerário − total ≠ saldo), `despesa_obrigatoria_ausente` (alerta) e `despesa_recorrente_ausente` (informativo).
 
 **Passo 7 — Pagamento do fornecedor estrangeiro (via câmbio):** — **`[R3]` NÃO implementado hoje** (o motor só gera 5.1/5.2/6.2/8). Depende do **campo de banco manual** (Seção 5) e de regra de banco por empresa → agendado para a **Fatia 2** (Seção 13).
 - (a) Pagamento antecipado: `D` Fornecedor estrangeiro · `C` Adiantamento fornecedor.
@@ -107,7 +115,7 @@ Estrutura D/C fixa por passo (regra de negócio; contas específicas variam por 
 
 - **IBS/CBS (Reforma Tributária):** o POP descreve o regime **antigo** (PIS/COFINS + ICMS). Os documentos de 2026 já trazem **CBS/IBS** (ver Seção 8). **Regra de contabilização de CBS/IBS = a definir com a Larissa.** `[R2]` Combinado enviar as dúvidas **por escrito** à Larissa (ela responde em texto); a regra de CBS/IBS entra nesse lote de perguntas.
 - **Contrato de câmbio real:** temos só o modelo do POP; sem amostra real, os campos 4–8 e o Passo 8 ficam parametrizados, não validados.
-- **Layouts de fechamento além de TERRA/WIN/SYNDEX/ALL TIME:** cada despachante novo é um parser novo.
+- **Layouts de fechamento além de TERRA/WIN/SYNDEX/ALL TIME/CONNECTA:** já suportados esses cinco; cada despachante novo continua sendo um parser novo.
 
 ---
 
@@ -130,7 +138,8 @@ Cada rodada de upload = **um processo** (regra 1.1). O operador sobe o pacote (N
 - Extração dos campos dos documentos suportados (Seção 4), guiada pela Seção 1.
 - Suporte a **DI** e **DUIMP** (dois modelos) e à **NF-e de importação**.
 - Suporte à **Comercial Invoice** (temos amostra real — CML Biotech).
-- Suporte aos fechamentos **TERRA, WIN, SYNDEX e ALL TIME** (quatro layouts com amostras reais).
+- Suporte aos fechamentos **TERRA, WIN, SYNDEX, ALL TIME e CONNECTA** (cinco layouts com amostras reais).
+- **`[R4]` Validação de despesas recorrentes/obrigatórias + reconciliação do fechamento** (Σ despesas == TOTAL; numerário − total == saldo), com avisos ao operador.
 - Reconhecimento dos **anexos do fechamento**: NFS-e de serviço, CT-e/DACTE, boleto, GRU, DARE-SC, termo AFRMM, LI/anuência, BL/MTD, comprovantes de pagamento.
 - **Extração de campos IBS/CBS** quando presentes nos documentos (ver Seção 8).
 - Camada **Middleware** (Seção 5).
@@ -159,7 +168,10 @@ Guiado pela taxonomia 1.1. Resumo por tipo (campos detalhados no anexo de implem
 - **DI** (ex. 26/0418027-7): nº/data registro, importador/adquirente, representante, modalidade/nº adições, frete/VMLE/VMLD, tributos, carga (manifesto/recinto/pesos), ref. interna/BL/navio/fatura, cotação e valores R$/US$, por adição (exportador, fabricante, NCM, INCOTERM, VCMV, alíquotas, LI/anuência).
 - **NF-e de importação (DANFE de entrada)**: nº/série/chave, emitente/destinatário, natureza, valor produtos/total, ICMS/IPI, **CBS/IBS/IBS-UF/IBS-MUN** e demais campos da reforma quando houver, itens (NCM/CFOP/qtd/valor), obs. (DUIMP/DI, PIS/COFINS entrada, Siscomex).
 - **Comercial Invoice** (ex. CML Biotech): exportador, consignee, nº invoice/data, INCOTERM, moeda, itens (NCM, batch, qtd, unit price, total), FOB total US$, condições de pagamento.
-- **Fechamentos** (TERRA / WIN / SYNDEX / ALL TIME): despesas por tipo, adiantamentos/numerário, tributos recolhidos, saldo credor/devedor, dados bancários. Layouts distintos → um parser por despachante.
+- **Fechamentos** (TERRA / WIN / SYNDEX / ALL TIME / CONNECTA): despesas por tipo, adiantamentos/numerário, tributos recolhidos, saldo credor/devedor, dados bancários. Layouts distintos → um parser por despachante.
+  - **`[R4]` Layout CONNECTA ("FATURAMENTO")** — dossiê único (faturamento na pág. 1 + Extrato DUIMP + NFS-e/anexos). Ancorado em **rótulos** (o texto vem **linear** do pdfplumber, sem coordenadas):
+    - **Bloco câmbio/aduaneiro:** `TAXA CAMBIAL USD <taxa>`; linhas `FOB`/`FRETE`/`SEGURO`/`TAXAS DE CE`/`VALOR ADUANEIRO` com **colunas USD e BRL** — usa-se a coluna **BRL**. A coluna à **direita do VALOR ADUANEIRO** = **numerário/adiantamento**.
+    - **Tabela DESPESAS:** entre o cabeçalho `DESPESAS COBRADOR DATA DE PAGAMENTO…` e `TOTAL R$` — cada linha = descrição + cobrador (colados, só **data** e **valor BRL** são âncoras fortes), depois `TOTAL` e `SALDO`, e por fim os **dados bancários**.
   - **`[R2]` Nome do despachante às vezes vem como imagem** (caso SYNDEX) e sem tag para localizar → difícil extrair direto. **Fontes alternativas em texto:** a **fatura de serviço / "comissão aduaneira de importação"** e o cadastro **"despachante aduaneiro autorizado"** na DI/DUIMP. Prever esse fallback (ou OCR) antes de depender do campo em imagem.
   - **`[R2]` Frete por boleto:** documento de **referência apenas** — a Larissa não extrai dados dele; entra no pacote só para eventual identificação. Não é fonte de extração.
 - **Anexos**: NFS-e (despachante/porto/frete), CT-e/DACTE (frete rodoviário, ICMS), GRU (Inmetro), DARE-SC (ICMS importação/diferido), termo/`débito` AFRMM, BL/MTD, comprovantes Pix/TED/boleto.
@@ -227,9 +239,10 @@ Contas, histórico e lote vêm do middleware/de-para (Seção 5). As partidas de
 | **SY1453/26 · 2025ECX067** (DUIMP 26BR0000258971-1) | ENCATEX · Direta | **SYNDEX** | IBS/CBS **+** PIS/COFINS | NF-e 2.411, DUIMP, fechamento + NFS-e porto/despachante, DARE-SC, AFRMM, CT-e Nextrans + boleto, recibos, Pix/TED | Sem **Invoice** e sem **contrato de câmbio** |
 | **26/0058 · CML-EXP-PI-51/25-26** (DI 26/0418027-7) | ALL LAB · Direta (imp=adq) | **ALL TIME** + Rhenus | PIS/COFINS (reduzido 0%) | DI (2 adições), **Invoice CML Biotech**, Packing List, BL/MTD, LI Anvisa, fechamento + NFS-e, DARE-SC, AFRMM, armazenagem JBS, Best Frete, comprovantes | Sem **contrato de câmbio** |
 | **982# · HKYCMOBR982** | ZINLOG p/ CMO · Conta e ordem | **TERRA** | — | Fechamento TERRA, GRU Inmetro | Parcial (amostra de layout) |
+| **0020-26 · TMP260120ID-01** (Duimp 26BR0000775592-0) | TIMPTRADE · Direta | **CONNECTA** | PIS/COFINS | Dossiê único de 20 p. (faturamento pág.1 + Extrato DUIMP + NFS-e/anexos) | Dossiê combinado; sem NF/DUIMP standalone |
 | **1159# / 870#** (rodadas anteriores) | ZINLOG-CMO / INFINITY | TERRA / WIN | — | DUIMP+NF / DI+TERRA / WIN | Parcial |
 
-**Cobertura obtida:** DI + DUIMP; quatro layouts de fechamento (TERRA/WIN/SYNDEX/ALL TIME); duas modalidades (direta / conta e ordem); Invoice real; ampla amostra de anexos.
+**Cobertura obtida:** DI + DUIMP; **cinco layouts de fechamento** (TERRA/WIN/SYNDEX/ALL TIME/CONNECTA); duas modalidades (direta / conta e ordem); Invoice real; ampla amostra de anexos.
 **Gap remanescente:** nenhum processo com **contrato de câmbio real**; documentos adicionais a receber (fora deste chat).
 
 ---
@@ -249,7 +262,8 @@ Contas, histórico e lote vêm do middleware/de-para (Seção 5). As partidas de
 - Importação no Domínio = **layout de partidas** (igual à macro atual).
 - Saída A = prova de extração; Saída B = destino real (partidas); C = opcional.
 - **DI e DUIMP** suportados; NF de importação suportada; **Invoice** suportada.
-- Fechamentos suportados: **TERRA, WIN, SYNDEX, ALL TIME**.
+- Fechamentos suportados: **TERRA, WIN, SYNDEX, ALL TIME, CONNECTA**.
+- `[R4]` **Validação de despesas do fechamento implementada:** rubricas recorrentes/obrigatórias + reconciliação (Σ despesas == TOTAL; numerário − total == saldo), emitindo avisos ao operador.
 - **Um upload = um processo.**
 - Contas/histórico/entidade contábil: via **middleware/de-para** (não extraíveis).
 - **IBS/CBS extraídos e reservados**; contabilização a confirmar.
@@ -263,7 +277,7 @@ Contas, histórico e lote vêm do middleware/de-para (Seção 5). As partidas de
 ---
 
 ## 10. Riscos e observações
-- **Maior risco de extração:** layouts de fechamento (4 distintos) e a qualidade dos escaneados (alguns anexos vêm como imagem de baixa resolução — ex. prestações da ALL TIME e comprovantes bancários; podem exigir OCR ou conferência manual).
+- **Maior risco de extração:** layouts de fechamento (cinco distintos — TERRA, WIN, SYNDEX, ALL TIME, CONNECTA) e a qualidade dos escaneados (alguns anexos vêm como imagem de baixa resolução — ex. prestações da ALL TIME e comprovantes bancários; podem exigir OCR ou conferência manual).
 - **Contrato de câmbio ausente** nos pacotes reais → variação cambial validada só via modelo.
 - **Regra CBS/IBS não confirmada** → único ponto que pode alterar a Saída B.
 - Documentos adicionais da Larissa a receber por outro canal → podem trazer novos despachantes/layouts.

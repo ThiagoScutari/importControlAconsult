@@ -163,6 +163,35 @@ def classificar_linha(
 
 
 # ---------------------------------------------------------------------------
+# 3. Rubricas recorrentes/obrigatórias de um processo (conferência pós-parse)
+# ---------------------------------------------------------------------------
+#
+# Fecha o buraco do "some em silêncio": uma despesa que o parser não capturar não
+# desaparece sem rastro — o consolidador confere esta lista contra as descrições
+# extraídas e emite Aviso para cada rubrica esperada que faltar. Estilo de
+# substring (UPPER), igual a CLASSIFICACAO_DESPESA_PADRAO; editável.
+#
+# (nome canônico, [sinônimos p/ match em UPPER], obrigatoria)
+RUBRICAS_RECORRENTES = [
+    ("Imposto de Importação", ["IMPOSTO DE IMPORTA"], True),
+    ("IPI", ["PRODUTOS INDUSTRIALIZADOS", "IPI"], True),
+    ("PIS-Importação", ["PIS"], True),
+    ("COFINS-Importação", ["COFINS"], True),
+    ("Taxa Siscomex", ["SISCOMEX"], True),
+    ("ICMS Importação", ["ICMS"], True),
+    ("Frete internacional/marítimo", ["FRETE MAR", "FRETE INTERNAC"], True),
+    ("AFRMM", ["AFRMM"], True),
+    ("Despacho/Honorários", ["DESPACHO", "HONORÁRIO", "HONORARIO"], True),
+    ("Armazenagem", ["ARMAZENAGEM"], False),
+    ("Levante", ["LEVANTE"], False),
+    ("Pesagem", ["PESAGEM"], False),
+    ("Emissão de LI / Licença", ["EMISSÃO LI", "EMISSAO LI", "LICEN"], False),
+    ("Tarifa bancária", ["TARIFA"], False),
+    ("IOF", ["IOF"], False),
+]
+
+
+# ---------------------------------------------------------------------------
 # De-para legado (macro original) — usado pelo fluxo TERRA/WIN existente
 # ---------------------------------------------------------------------------
 

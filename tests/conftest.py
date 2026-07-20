@@ -34,6 +34,8 @@ ASSET_FILES = {
     "nf_sy1453": _um("*NOTA FISCAL IMPORTA*.pdf"),
     "syndex_fechamento": _um("FECHAMENTO_SY1453*Fatura.pdf"),
     "syndex_numerario": _um("NUMERARIO*SY1453*[!O].pdf"),
+    # Dossiê CONNECTA (layout FATURAMENTO) — DUIMP+NF+faturamento em um só PDF
+    "connecta": os.path.join(ASSETS, "corpus", "0020-26 - FECHAMENTO COMPLETO.pdf"),
 }
 
 

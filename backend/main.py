@@ -30,6 +30,7 @@ from backend.extractors import (
     di,
     duimp,
     fechamento_alltime,
+    fechamento_connecta,
     fechamento_syndex,
     fechamento_terra,
     fechamento_win,
@@ -54,6 +55,7 @@ EXTRATORES = {
     TipoDocumento.FECHAMENTO_WIN: fechamento_win,
     TipoDocumento.FECHAMENTO_SYNDEX: fechamento_syndex,
     TipoDocumento.FECHAMENTO_ALLTIME: fechamento_alltime,
+    TipoDocumento.FECHAMENTO_CONNECTA: fechamento_connecta,
 }
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -27,7 +27,6 @@ assets/
 # Documentação e afins (não vão para runtime)
 docs/
 *.md
-README.html
 spec.md
 pytest.ini
 
