@@ -35,7 +35,8 @@ A importação envolve documentos de origens diferentes que **não conversam ent
 - **DUIMP** ou **DI** — a declaração de importação (dados oficiais, tributos).
 - **Nota Fiscal de Importação** (DANFE de entrada) — número, valor, ICMS, chave.
 - **Fechamento do despachante** — a "conta" das despesas (frete, AFRMM, armazenagem…).
-  Cada despachante usa um layout próprio; aqui suportamos **TERRA** e **WIN TRADING**.
+  Cada despachante usa um layout próprio; aqui suportamos cinco: **TERRA**,
+  **WIN TRADING**, **SYNDEX**, **ALL TIME** e **CONNECTA**.
 
 O fluxo completo está ilustrado na imagem **`docs/imagem.png`**:
 
@@ -145,7 +146,8 @@ Exemplo de linha gerada:
 │   ├── extractors/          # um extrator por tipo de documento
 │   │   ├── comum.py         # bloco compartilhado entre DI e DUIMP
 │   │   ├── duimp.py · di.py · nota_fiscal.py
-│   │   └── fechamento_terra.py · fechamento_win.py
+│   │   └── fechamento_terra.py · fechamento_win.py · fechamento_syndex.py
+│   │       · fechamento_alltime.py · fechamento_connecta.py
 │   ├── consolidador.py      # junta os documentos em 1 registro de processo
 │   ├── depara.py            # tabela de-para (fornecedor/despesa → conta/histórico)
 │   └── outputs.py           # gera os CSVs A, B e C
@@ -163,15 +165,17 @@ Exemplo de linha gerada:
 **Está no escopo:**
 - Upload por arrastar/soltar de vários PDFs de **um processo**.
 - Extração de **DUIMP**, **DI**, **NF de Importação**, e dos fechamentos
-  **TERRA** e **WIN TRADING**.
+  **TERRA**, **WIN TRADING**, **SYNDEX**, **ALL TIME** e **CONNECTA**.
 - Camada **Middleware** (operador confere e completa) com **de-para**.
+- **Validação de despesas do fechamento:** rubricas recorrentes/obrigatórias +
+  reconciliação (Σ despesas == TOTAL; numerário − total == saldo), com avisos ao operador.
 - Geração das **Saídas A, B e C**.
 
 **NÃO está no escopo (por enquanto):**
 - **Conciliação / validação de divergências** entre DI/DUIMP, NF e Fechamento —
   aqui é só **extração crua** (divergências são apenas *sinalizadas* em avisos).
 - **Câmbio e variação cambial**.
-- Outros layouts de fechamento além de TERRA e WIN.
+- Outros layouts de fechamento além de TERRA, WIN, SYNDEX, ALL TIME e CONNECTA.
 - **OCR** de documentos escaneados (os exemplos têm camada de texto).
 - Integração automática com o Domínio — a importação segue **manual** (anexar o arquivo).
 - Banco de dados, login, multiusuário.
