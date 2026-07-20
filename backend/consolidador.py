@@ -37,11 +37,21 @@ def _difere(a, b) -> bool:
     return str(a).strip() != str(b).strip()
 
 
-def _despesa_valor(fechamento: Optional[dict], keyword: str) -> Optional[float]:
+def _despesa_valor(fechamento: Optional[dict], keyword) -> Optional[float]:
+    """Valor da 1ª despesa cujo rótulo contém ``keyword``.
+
+    ``keyword`` pode ser uma ``str`` (comportamento original) OU uma ``list[str]``
+    de sinônimos — casa QUALQUER um dos termos (match em UPPER). Serve para as
+    rubricas cuja descrição não traz a sigla (ex.: o IPI aparece como "PRODUTOS
+    INDUSTRIALIZADOS", não "IPI").
+    """
     if not fechamento:
         return None
+    termos = [keyword] if isinstance(keyword, str) else list(keyword)
+    termos = [t.upper() for t in termos]
     for item in fechamento.get("despesas", []):
-        if keyword in str(item.get("descricao", "")).upper():
+        desc = str(item.get("descricao", "")).upper()
+        if any(t in desc for t in termos):
             return item.get("valor")
     return None
 
@@ -182,11 +192,14 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
         fob_rs=pega("fob_rs", [("DUIMP", g(duimp, "fob_rs")), ("DI", g(di, "fob_rs")), ("WIN", g(win, "fob")), ("CONNECTA", g(connecta, "fob"))]),
         frete_rs=pega("frete_rs", [("DUIMP", g(duimp, "frete_rs")), ("DI", g(di, "frete_rs")), ("WIN", g(win, "frete")), ("CONNECTA", g(connecta, "frete"))]),
         valor_aduaneiro_rs=pega("valor_aduaneiro_rs", [("DUIMP", g(duimp, "valor_aduaneiro_rs")), ("DI", g(di, "valor_aduaneiro_rs")), ("WIN", g(win, "valor_aduaneiro")), ("CONNECTA", g(connecta, "valor_aduaneiro"))]),
-        ii=pega("ii", [("DUIMP", g(duimp, "ii")), ("DI", g(di, "ii"))]),
-        ipi=pega("ipi", [("DUIMP", g(duimp, "ipi")), ("DI", g(di, "ipi")), ("NF", g(nf, "ipi"))]),
-        pis=pega("pis", [("DUIMP", g(duimp, "pis")), ("DI", g(di, "pis")), ("NF", g(nf, "pis_entrada"))]),
-        cofins=pega("cofins", [("DUIMP", g(duimp, "cofins")), ("DI", g(di, "cofins")), ("NF", g(nf, "cofins_entrada"))]),
-        siscomex=pega("siscomex", [("DUIMP", g(duimp, "siscomex")), ("DI", g(di, "siscomex")), ("NF", g(nf, "siscomex"))]),
+        # Tributos federais: a declaração (DUIMP/DI/NF) é a fonte autoritativa; o
+        # fechamento entra só como FALLBACK (dossiê sem declaração). Não afeta a
+        # Saída B — o Passo 6.2 vem de processo.despesas via classificar_linha.
+        ii=pega("ii", [("DUIMP", g(duimp, "ii")), ("DI", g(di, "ii")), ("Fechamento", _despesa_valor(fechamento, ["IMPOSTO DE IMPORTA"]))]),
+        ipi=pega("ipi", [("DUIMP", g(duimp, "ipi")), ("DI", g(di, "ipi")), ("NF", g(nf, "ipi")), ("Fechamento", _despesa_valor(fechamento, ["PRODUTOS INDUSTRIALIZADOS"]))]),
+        pis=pega("pis", [("DUIMP", g(duimp, "pis")), ("DI", g(di, "pis")), ("NF", g(nf, "pis_entrada")), ("Fechamento", _despesa_valor(fechamento, ["PIS"]))]),
+        cofins=pega("cofins", [("DUIMP", g(duimp, "cofins")), ("DI", g(di, "cofins")), ("NF", g(nf, "cofins_entrada")), ("Fechamento", _despesa_valor(fechamento, ["COFINS"]))]),
+        siscomex=pega("siscomex", [("DUIMP", g(duimp, "siscomex")), ("DI", g(di, "siscomex")), ("NF", g(nf, "siscomex")), ("Fechamento", _despesa_valor(fechamento, ["SISCOMEX"]))]),
         afrmm=pega("afrmm", [("Fechamento", _despesa_valor(fechamento, "AFRMM"))]),
         icms=pega("icms", [("NF", g(nf, "icms")), ("Fechamento", _despesa_valor(fechamento, "ICMS"))]),
         armazenagem=pega("armazenagem", [("Fechamento", _despesa_valor(fechamento, "ARMAZENAGEM"))]),
@@ -213,6 +226,15 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
     # (não é o valor da NF nem o aduaneiro; spec §1.3). Só quando ambos existem.
     if p.invoice_usd is not None and p.tx_di is not None:
         p.resultado_rs = round(p.invoice_usd * p.tx_di, 2)
+
+    # total_tributos: fallback do fechamento. Só quando a declaração NÃO trouxe o
+    # total (mantém o autoritativo se veio) e há ao menos um federal preenchido a
+    # partir do fechamento — soma os cinco presentes, ignorando None.
+    if p.total_tributos is None and fechamento is not None:
+        componentes = [p.ii, p.ipi, p.pis, p.cofins, p.siscomex]
+        presentes = [v for v in componentes if v is not None]
+        if presentes:
+            p.total_tributos = round(sum(presentes), 2)
 
     # Conferência das despesas (Problema 2): só quando há fechamento — evita poluir
     # processos DUIMP+NF (sem despachante) com 15 "ausentes".
