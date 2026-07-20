@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
+from backend.depara import RUBRICAS_RECORRENTES
 from backend.models import Aviso, Divergencia, ProcessoExtraido
 
 # Campos cuja ausência merece um aviso visível (evita poluir com 30 mensagens).
@@ -43,6 +44,56 @@ def _despesa_valor(fechamento: Optional[dict], keyword: str) -> Optional[float]:
         if keyword in str(item.get("descricao", "")).upper():
             return item.get("valor")
     return None
+
+
+def _conferir_despesas(despesas: list, fechamento: Optional[dict]) -> List[Aviso]:
+    """Confere as despesas extraídas contra o esperado — fecha o "some em silêncio".
+
+    Genérico para qualquer layout de fechamento:
+    - **Reconciliação:** Σ despesas vs. o ``TOTAL`` impresso no fechamento.
+    - **Coerência do numerário:** ``(adiantamento − total)`` deve bater com o ``saldo``.
+    - **Ausentes:** cada rubrica de :data:`RUBRICAS_RECORRENTES` não encontrada em
+      nenhuma descrição vira Aviso (obrigatória = alerta; recorrente = informativo).
+
+    Toda despesa esperada que não foi extraída passa a virar Aviso ao operador em
+    vez de desaparecer sem rastro.
+    """
+    avisos: List[Aviso] = []
+    total = fechamento.get("total") if fechamento else None
+    saldo = fechamento.get("saldo") if fechamento else None
+    adiant = fechamento.get("adiantamento_total") if fechamento else None
+
+    if despesas and isinstance(total, (int, float)):
+        soma = round(sum((d.get("valor") or 0.0) for d in despesas), 2)
+        if abs(soma - total) > 0.01:
+            avisos.append(Aviso(
+                tipo="despesa_divergente", campo="total",
+                mensagem=f"Σ despesas {soma:.2f} ≠ TOTAL {total:.2f} do fechamento",
+            ))
+
+    if (
+        isinstance(adiant, (int, float))
+        and isinstance(total, (int, float))
+        and isinstance(saldo, (int, float))
+        and abs((adiant - total) - saldo) > 0.01
+    ):
+        avisos.append(Aviso(
+            tipo="numerario_divergente", campo="saldo",
+            mensagem=f"(adiantamento {adiant:.2f} − total {total:.2f}) ≠ saldo {saldo:.2f}",
+        ))
+
+    descs = " || ".join(str(d.get("descricao") or "").upper() for d in despesas)
+    for nome, sinonimos, obrigatoria in RUBRICAS_RECORRENTES:
+        if not any(s in descs for s in sinonimos):
+            avisos.append(Aviso(
+                tipo="despesa_obrigatoria_ausente" if obrigatoria else "despesa_recorrente_ausente",
+                campo=nome,
+                mensagem=(
+                    f"rubrica {'obrigatória' if obrigatoria else 'recorrente'} "
+                    f"'{nome}' não encontrada nas despesas do fechamento"
+                ),
+            ))
+    return avisos
 
 
 def consolidar(documentos: List[dict]) -> ProcessoExtraido:
@@ -162,5 +213,10 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
     # (não é o valor da NF nem o aduaneiro; spec §1.3). Só quando ambos existem.
     if p.invoice_usd is not None and p.tx_di is not None:
         p.resultado_rs = round(p.invoice_usd * p.tx_di, 2)
+
+    # Conferência das despesas (Problema 2): só quando há fechamento — evita poluir
+    # processos DUIMP+NF (sem despachante) com 15 "ausentes".
+    if fechamento:
+        p.avisos.extend(_conferir_despesas(p.despesas, fechamento))
 
     return p
