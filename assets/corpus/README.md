@@ -9,6 +9,19 @@ Fatia 1 (ver `ANEXO_A_SY1453.md`). A pasta original misturava **4 processos dist
 | `982_cmo_terra/` | **982 / CMO** (ZINLOG → CMO) | TERRA | Referência (sem teste) |
 | `26_0058_alltime/` | **26/0058** — DI `26/0418027-7` (ALL LAB) | **ALL TIME** | Amostra ALL TIME — **texto OCR degradado**, documenta o gap da Fatia 2 |
 | `fortress/` | **IM25/00171** (ZINLOG, freight forwarder) | Fortress | Referência (sem teste) |
+| `0020-26 - FECHAMENTO COMPLETO.pdf` (arquivo solto) | **0020-26** · TMP260120ID-01 — Duimp `26BR0000775592-0` (TIMPTRADE) | **CONNECTA** | **Fixtures dos testes** (`test_fechamento_connecta.py`, `test_consolidacao_0020.py`) |
+
+## Dossiê CONNECTA — `0020-26 - FECHAMENTO COMPLETO.pdf`
+
+Dossiê **único de 20 páginas** (não splitado): faturamento CONNECTA na **pág. 1** +
+**Extrato DUIMP** `26BR0000775592-0` (pág. 2–6) + **NFS-e** (Ethima/Portonave/Connecta) +
+boletos/GRU (**Inmetro**/**DARE-SC**/**AFRMM**) + comprovantes. Importador **TIMPTRADE**.
+É o 5º layout de fechamento (**CONNECTA**, layout "FATURAMENTO"). Usado por
+`tests/test_fechamento_connecta.py` e `tests/test_consolidacao_0020.py`.
+
+> **Observação:** só existe o **dossiê combinado** — não há NF-e/DUIMP **standalone** do
+> processo. Por isso o end-to-end multi-arquivo (`test_consolidacao_0020.py::test_e2e_multiarquivo_standalone`)
+> fica como **xfail** até o corpus receber os avulsos.
 
 ## Arquivos sem camada de texto (escaneados) — conferência manual
 
