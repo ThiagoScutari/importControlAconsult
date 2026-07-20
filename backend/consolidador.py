@@ -57,8 +57,9 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
     win = _primeiro(por_tipo, "fechamento_win")
     syndex = _syndex_preferido(por_tipo)
     alltime = _primeiro(por_tipo, "fechamento_alltime")
+    connecta = _primeiro(por_tipo, "fechamento_connecta")
     declaracao = duimp or di
-    fechamento = terra or win or syndex or alltime
+    fechamento = terra or win or syndex or alltime or connecta
 
     avisos: List[Aviso] = []
     divergencias: List[Divergencia] = []
@@ -114,7 +115,7 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
         importador_cnpj=pega("importador_cnpj", [("DUIMP", g(duimp, "importador_cnpj")), ("DI", g(di, "importador_cnpj")), ("NF", g(nf, "emitente_cnpj"))]),
         adquirente_nome=pega("adquirente_nome", [("DI", g(di, "adquirente_nome")), ("WIN", g(win, "adquirente"))]),
         adquirente_cnpj=pega("adquirente_cnpj", [("DI", g(di, "adquirente_cnpj"))]),
-        despachante=pega("despachante", [("TERRA", g(terra, "despachante")), ("WIN", g(win, "trading")), ("SYNDEX", g(syndex, "despachante")), ("ALLTIME", g(alltime, "despachante"))]),
+        despachante=pega("despachante", [("TERRA", g(terra, "despachante")), ("WIN", g(win, "trading")), ("SYNDEX", g(syndex, "despachante")), ("ALLTIME", g(alltime, "despachante")), ("CONNECTA", g(connecta, "despachante"))]),
         fornecedor_estrangeiro=pega("fornecedor_estrangeiro", [("DUIMP", g(duimp, "exportador")), ("WIN", g(win, "exportador"))]),
         fabricante=pega("fabricante", [("DUIMP", g(duimp, "fabricante"))]),
         pais_origem=pega("pais_origem", [("DUIMP", g(duimp, "pais_procedencia"))]),
@@ -127,9 +128,9 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
         ibs_uf=pega("ibs_uf", [("NF", g(nf, "ibs_uf"))]),
         ibs_mun=pega("ibs_mun", [("NF", g(nf, "ibs_mun"))]),
         cclasstrib=pega("cclasstrib", [("DUIMP", g(duimp, "cclasstrib"))]),
-        fob_rs=pega("fob_rs", [("DUIMP", g(duimp, "fob_rs")), ("DI", g(di, "fob_rs")), ("WIN", g(win, "fob"))]),
-        frete_rs=pega("frete_rs", [("DUIMP", g(duimp, "frete_rs")), ("DI", g(di, "frete_rs")), ("WIN", g(win, "frete"))]),
-        valor_aduaneiro_rs=pega("valor_aduaneiro_rs", [("DUIMP", g(duimp, "valor_aduaneiro_rs")), ("DI", g(di, "valor_aduaneiro_rs")), ("WIN", g(win, "valor_aduaneiro"))]),
+        fob_rs=pega("fob_rs", [("DUIMP", g(duimp, "fob_rs")), ("DI", g(di, "fob_rs")), ("WIN", g(win, "fob")), ("CONNECTA", g(connecta, "fob"))]),
+        frete_rs=pega("frete_rs", [("DUIMP", g(duimp, "frete_rs")), ("DI", g(di, "frete_rs")), ("WIN", g(win, "frete")), ("CONNECTA", g(connecta, "frete"))]),
+        valor_aduaneiro_rs=pega("valor_aduaneiro_rs", [("DUIMP", g(duimp, "valor_aduaneiro_rs")), ("DI", g(di, "valor_aduaneiro_rs")), ("WIN", g(win, "valor_aduaneiro")), ("CONNECTA", g(connecta, "valor_aduaneiro"))]),
         ii=pega("ii", [("DUIMP", g(duimp, "ii")), ("DI", g(di, "ii"))]),
         ipi=pega("ipi", [("DUIMP", g(duimp, "ipi")), ("DI", g(di, "ipi")), ("NF", g(nf, "ipi"))]),
         pis=pega("pis", [("DUIMP", g(duimp, "pis")), ("DI", g(di, "pis")), ("NF", g(nf, "pis_entrada"))]),
@@ -147,6 +148,7 @@ def consolidar(documentos: List[dict]) -> ProcessoExtraido:
         adiantamento_total=pega("adiantamento_total", [
             ("TERRA", g(terra, "adiantamento_total")), ("WIN", g(win, "adiantamento_total")),
             ("SYNDEX", g(syndex, "adiantamento_total")), ("ALLTIME", g(alltime, "adiantamento_total")),
+            ("CONNECTA", g(connecta, "adiantamento_total")),
         ]),
         documentos=list(documentos),
         despesas=list(fechamento.get("despesas", [])) if fechamento else [],
