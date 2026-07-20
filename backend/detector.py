@@ -29,6 +29,7 @@ class TipoDocumento(str, Enum):
     FECHAMENTO_WIN = "fechamento_win"
     FECHAMENTO_SYNDEX = "fechamento_syndex"
     FECHAMENTO_ALLTIME = "fechamento_alltime"  # [F1-03] despachante ALL TIME (+ Rhenus)
+    FECHAMENTO_CONNECTA = "fechamento_connecta"  # [F1-11] despachante CONNECTA (layout FATURAMENTO)
     ANEXO_REFERENCIA = "anexo_referencia"  # [F1-02] anexo/referência (incl. só-imagem)
     DESCONHECIDO = "desconhecido"
 
@@ -84,6 +85,14 @@ def detectar_tipo(texto: str) -> TipoDocumento:
     #    ANTES da DI: o fechamento ALL TIME embute a DI ("Extrato da Declaração").
     if ("ALL TIME" in tu and "COMERCIO EXTERIOR" in tu) or "RHENUS" in tu:
         return TipoDocumento.FECHAMENTO_ALLTIME
+    #    CONNECTA: página de FATURAMENTO. Âncora dupla — nome do despachante MAIS o
+    #    cabeçalho da tabela de despesas — p/ não casar uma NFS-e Connecta que apareça
+    #    como anexo de OUTRO despachante. ANTES da DUIMP: o dossiê CONNECTA embute o
+    #    Extrato da Duimp (7 ocorrências), que senão o roteava para DUIMP.
+    if "CONNECTA ASSESSORIA ADUANEIRA" in tu and re.search(
+        r"DESPESAS\s+COBRADOR\s+DATA DE PAGAMENTO", tu
+    ):
+        return TipoDocumento.FECHAMENTO_CONNECTA
 
     # 2) Declaração / NF-e de importação — âncoras específicas.
     if "EXTRATO DA DUIMP" in tu:
