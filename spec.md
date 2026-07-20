@@ -277,7 +277,7 @@ Contas, histórico e lote vêm do middleware/de-para (Seção 5). As partidas de
 ---
 
 ## 10. Riscos e observações
-- **Maior risco de extração:** layouts de fechamento (4 distintos) e a qualidade dos escaneados (alguns anexos vêm como imagem de baixa resolução — ex. prestações da ALL TIME e comprovantes bancários; podem exigir OCR ou conferência manual).
+- **Maior risco de extração:** layouts de fechamento (cinco distintos — TERRA, WIN, SYNDEX, ALL TIME, CONNECTA) e a qualidade dos escaneados (alguns anexos vêm como imagem de baixa resolução — ex. prestações da ALL TIME e comprovantes bancários; podem exigir OCR ou conferência manual).
 - **Contrato de câmbio ausente** nos pacotes reais → variação cambial validada só via modelo.
 - **Regra CBS/IBS não confirmada** → único ponto que pode alterar a Saída B.
 - Documentos adicionais da Larissa a receber por outro canal → podem trazer novos despachantes/layouts.
