@@ -10,6 +10,7 @@ from backend.contabilizador import (
     gerar_partidas,
     lotes_balanceiam,
     montar_nome_conta_processo,
+    validar_partidas,
 )
 from backend.depara import PapelConta, codigo_conta
 from backend.extractors import duimp, fechamento_syndex, nota_fiscal
@@ -105,6 +106,33 @@ class TestMotorEstrutura:
         parts = gerar_partidas(proc_sy1453, MiddlewareInput())
         assert not any(l.passo in ("5.1", "5.2", "6.2") for l in parts)
         assert any("não preenchida" in a.mensagem for a in proc_sy1453.avisos)
+
+    def test_conta_processo_numero_do_middleware_alimenta_o_papel(self, proc_sy1453):
+        """[bug Saída B vazia] O campo "Conta do Processo — número" do middleware
+        é o lugar óbvio (e rotulado) para o operador informar essa conta. O motor
+        precisa aceitá-lo como código do papel CONTA_PROCESSO — antes ele só olhava
+        ``contas_override`` e devolvia Saída B sem uma única linha.
+        """
+        parts = gerar_partidas(proc_sy1453, MiddlewareInput(conta_processo_numero="1648"))
+        p51 = [l for l in parts if l.passo == "5.1"]
+        assert len(p51) == 1, "Passo 5.1 bloqueado mesmo com a conta do processo informada"
+        assert p51[0].conta_credito == "1648"
+
+    def test_contas_override_tem_precedencia_sobre_conta_processo_numero(self, proc_sy1453):
+        """Se o operador preencher os dois campos, o de-para por papel manda."""
+        mid = MiddlewareInput(
+            conta_processo_numero="1648",
+            contas_override={PapelConta.CONTA_PROCESSO.value: "9999"},
+        )
+        p51 = [l for l in gerar_partidas(proc_sy1453, mid) if l.passo == "5.1"]
+        assert p51[0].conta_credito == "9999"
+
+    def test_saida_b_sem_partidas_gera_aviso(self):
+        """[bug Saída B vazia] Zero partidas não pode passar em silêncio: o CSV do
+        Domínio sai sem linhas e o operador precisa saber por quê."""
+        avisos = validar_partidas([])
+        assert avisos, "nenhuma partida gerada e nenhum aviso emitido"
+        assert any("vazia" in a.mensagem.lower() for a in avisos)
 
     def test_nome_conta_processo(self, proc_sy1453):
         nome = montar_nome_conta_processo(proc_sy1453)

@@ -221,11 +221,31 @@ async def generate(req: GerarRequest):
     buf.seek(0)
 
     nome_zip = f"{ref}_saidas.zip"
+    # O corpo é um .zip, então o front não consegue ler os avisos da geração. Estes
+    # headers (ASCII) carregam o essencial para a tela: quantas partidas a Saída B
+    # tem e quais contas obrigatórias continuam em branco. Sem isso, uma Saída B
+    # vazia era baixada com um "✓ arquivos baixados" — o bug relatado.
     return Response(
         content=buf.getvalue(),
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{nome_zip}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{nome_zip}"',
+            "X-Saida-B-Partidas": str(len(lancamentos)),
+            "X-Contas-Pendentes": ",".join(_contas_pendentes(processo.avisos)),
+            "Access-Control-Expose-Headers": "X-Saida-B-Partidas, X-Contas-Pendentes",
+        },
     )
+
+
+def _contas_pendentes(avisos) -> List[str]:
+    """Papéis de conta sem código, extraídos dos Avisos ``conta:<papel>`` do motor."""
+    pendentes = []
+    for a in avisos:
+        if a.campo.startswith("conta:"):
+            papel = a.campo.split(":", 1)[1]
+            if papel not in pendentes:
+                pendentes.append(papel)
+    return pendentes
 
 
 XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

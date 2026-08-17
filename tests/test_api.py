@@ -181,6 +181,54 @@ def test_generate_avisa_conta_faltante(asset_files):
     assert "adiantamento_despachante" in avisos or "incompleta" in avisos.lower()
 
 
+def test_generate_conta_processo_numero_preenche_saida_b(asset_files):
+    """[bug Saída B vazia] Payload igual ao do front: o operador preencheu só o
+    campo "Conta do Processo — número" do middleware. A Saída B não pode voltar
+    sem linhas (era exatamente o CSV vazio reportado)."""
+    proc = client.post(
+        "/extract", files=_upload(asset_files, "duimp_sy1453", "nf_sy1453", "syndex_fechamento")
+    ).json()
+    mid = {"conta_processo_numero": "1648", "contas_override": {}, "lancamentos": []}
+    resp = client.post("/generate", json={"processo": proc, "middleware": mid})
+    assert resp.status_code == 200
+
+    zf = zipfile.ZipFile(io.BytesIO(resp.content))
+    b = _saida(zf, "saida_B_lancamentos_dominio.csv").strip()
+    assert b, "Saída B veio vazia mesmo com a conta do processo informada"
+    linhas = b.splitlines()
+    assert all(len(l.split(";")) == 10 for l in linhas)
+    assert linhas[0].split(";")[2] == "1648"  # Passo 5.1 credita a conta do processo
+
+
+def test_generate_sinaliza_saida_b_vazia_nos_headers(asset_files):
+    """[bug Saída B vazia] Sem nenhuma conta preenchida a Saída B sai sem linhas;
+    o /generate precisa dizer isso ao front (headers) em vez de responder ✓ mudo."""
+    proc = client.post(
+        "/extract", files=_upload(asset_files, "duimp_sy1453", "nf_sy1453", "syndex_fechamento")
+    ).json()
+    resp = client.post("/generate", json={"processo": proc, "middleware": {}})
+    assert resp.status_code == 200
+    assert resp.headers["x-saida-b-partidas"] == "0"
+    pendentes = resp.headers["x-contas-pendentes"].split(",")
+    assert "conta_processo" in pendentes
+
+    zf = zipfile.ZipFile(io.BytesIO(resp.content))
+    assert "vazia" in _saida(zf, "AVISOS.txt").lower()
+
+
+def test_generate_headers_com_partidas(asset_files):
+    """Caminho feliz: contagem de partidas no header e nada pendente."""
+    proc = client.post(
+        "/extract", files=_upload(asset_files, "duimp_sy1453", "nf_sy1453", "syndex_fechamento")
+    ).json()
+    resp = client.post("/generate", json={"processo": proc, "middleware": {"contas_override": _CONTAS}})
+    zf = zipfile.ZipFile(io.BytesIO(resp.content))
+    linhas = _saida(zf, "saida_B_lancamentos_dominio.csv").strip().splitlines()
+    assert resp.headers["x-saida-b-partidas"] == str(len(linhas))
+    assert int(resp.headers["x-saida-b-partidas"]) > 0
+    assert resp.headers["x-contas-pendentes"] == ""
+
+
 def test_index_serve_html():
     resp = client.get("/")
     assert resp.status_code == 200

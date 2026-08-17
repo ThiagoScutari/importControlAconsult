@@ -67,6 +67,14 @@ def gerar_partidas(processo: ProcessoExtraido, middleware: MiddlewareInput) -> L
 
     def conta(papel: PapelConta) -> str:
         cod = codigo_conta(papel, contas_ovr)
+        # A conta do processo tem DOIS campos no middleware: a linha do papel na
+        # tabela de-para e o campo dedicado "Conta do Processo — número". O motor
+        # lia só o primeiro, então quem preenchia o segundo (o rotulado!) recebia
+        # a Saída B sem uma única linha — CONTA_PROCESSO participa dos Passos 5.1,
+        # 5.2 e 6.2, e conta em branco bloqueia todos. O de-para tem precedência;
+        # o campo dedicado é o fallback.
+        if not cod and papel is PapelConta.CONTA_PROCESSO:
+            cod = (middleware.conta_processo_numero or "").strip()
         if not cod and papel.value not in contas_faltando:
             contas_faltando.add(papel.value)
             avisos.append(Aviso(
@@ -241,13 +249,26 @@ def lotes_balanceiam(lancamentos: List[Lancamento]) -> bool:
 
 
 def validar_partidas(lancamentos: List[Lancamento]) -> List[Aviso]:
-    """Aponta partidas incompletas (conta em branco) e lotes desbalanceados.
+    """Aponta Saída B vazia, partidas incompletas e lotes desbalanceados.
 
     Não bloqueia a geração — devolve Avisos para o operador completar. Um lote
     com débito ou crédito sem código de conta não pode ir para o Domínio; hoje
     isso vinha em branco e silencioso (bug 2).
+
+    **Lista vazia é o pior caso:** a Saída B sai sem nenhuma linha (arquivo só com
+    o BOM) e o loop abaixo, que só olha partidas existentes, não tinha o que
+    reclamar — o operador baixava um CSV vazio sem explicação. Agora sai aviso.
     """
     avisos: List[Aviso] = []
+    if not lancamentos:
+        avisos.append(Aviso(
+            tipo="ausente", campo="saida_b",
+            mensagem=("Saída B vazia: nenhuma partida foi gerada. Toda partida do POP "
+                      "usa a CONTA DO PROCESSO; sem o código dela (e o do fornecedor "
+                      "estrangeiro / adiantamento) nada é lançado. Preencha as contas "
+                      "obrigatórias no middleware e gere de novo."),
+        ))
+        return avisos
     lotes_incompletos: set = set()
     for l in lancamentos:
         if (not l.conta_debito or not l.conta_credito) and l.lote not in lotes_incompletos:

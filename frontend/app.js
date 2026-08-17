@@ -445,6 +445,7 @@ function baixarBlob(blob, nome) {
 
 async function gerar() {
   const status = $("#gerar-status");
+  status.classList.remove("erro");
   status.textContent = "Gerando…";
   try {
     const body = JSON.stringify({ processo: coletarProcesso(), middleware: coletarMiddleware() });
@@ -454,10 +455,50 @@ async function gerar() {
       body,
     });
     if (!resp.ok) throw new Error("Falha ao gerar (" + resp.status + ")");
+
+    // O backend informa nos headers quantas partidas a Saída B tem e quais contas
+    // obrigatórias continuam em branco. Sem isso, uma Saída B vazia (CSV do Domínio
+    // sem nenhuma linha) era baixada com um "✓" — o operador não tinha como saber.
+    const partidas = parseInt(resp.headers.get("X-Saida-B-Partidas") || "0", 10);
+    const pendentes = (resp.headers.get("X-Contas-Pendentes") || "").split(",").filter(Boolean);
+
     baixarBlob(await resp.blob(),
       `saidas_processo_${(coletarProcesso().processo || "sem_ref").replace(/\W+/g, "_")}.zip`);
-    status.textContent = "✓ arquivos baixados";
+
+    if (partidas === 0) {
+      status.classList.add("erro");
+      status.textContent =
+        "⚠ Saída B (Domínio) saiu VAZIA — informe o código das contas: " +
+        (pendentes.join(", ") || "obrigatórias") + ". Os demais arquivos foram baixados.";
+      destacarContasPendentes(pendentes);
+    } else if (pendentes.length) {
+      status.classList.add("erro");
+      status.textContent =
+        `⚠ ${partidas} partida(s) geradas, mas faltam contas (${pendentes.join(", ")}) — ` +
+        "as partidas que as usam ficaram de fora.";
+      destacarContasPendentes(pendentes);
+    } else {
+      status.textContent = `✓ arquivos baixados (${partidas} partidas na Saída B)`;
+    }
   } catch (err) {
+    status.classList.add("erro");
     status.textContent = "✕ " + err.message;
   }
+}
+
+// Realça as contas que bloquearam partidas e leva o operador até elas.
+function destacarContasPendentes(pendentes) {
+  let primeiro = null;
+  pendentes.forEach((papel) => {
+    const alvos = [$("#conta__" + papel)];
+    // a conta do processo tem também o campo dedicado no bloco Middleware
+    if (papel === "conta_processo") alvos.push($("#mid__conta_processo_numero"));
+    alvos.forEach((inp) => {
+      if (!inp) return;
+      inp.classList.add("campo-destacado");
+      inp.addEventListener("input", () => inp.classList.remove("campo-destacado"), { once: true });
+      if (!primeiro) primeiro = inp;
+    });
+  });
+  if (primeiro) primeiro.scrollIntoView({ behavior: "smooth", block: "center" });
 }
