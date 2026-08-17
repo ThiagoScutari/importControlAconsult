@@ -132,6 +132,14 @@ Exemplo de linha gerada:
 30/04/2026;5210;805;1595,46;59;PROCESSO 870 ... - AFRMM;;;;
 ```
 
+> **Saída B saiu vazia?** Toda partida do POP usa a **conta do processo** — sem o código dela
+> nada é lançado, e o CSV do Domínio sai sem uma única linha (spec §1.4 [R3]: o sistema não
+> inventa número de conta). Informe no bloco *Middleware* o campo **“Conta do Processo — número”**
+> *ou* a linha `conta_processo` da tabela **Plano de contas do processo** (a tabela tem
+> precedência). Para as partidas dos Passos 5.2 e 6.2, informe também `fornecedor_estrangeiro`
+> e `adiantamento_despachante`. A tela avisa em vermelho quais contas estão faltando e destaca
+> os campos; a lista completa também vai no `AVISOS.txt` do zip.
+
 ---
 
 ## 6. Estrutura de pastas
