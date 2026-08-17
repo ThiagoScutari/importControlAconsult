@@ -43,6 +43,10 @@
         <div id="campos-middleware" class="grid"></div>
 
         <h4>Plano de contas do processo <small>(papel contábil → código — sobrepõe o de-para)</small></h4>
+        <p class="sub-nota">Obrigatórias para a Saída B: <strong>conta_processo</strong> (usada em todos os passos),
+          <strong>fornecedor_estrangeiro</strong> e <strong>adiantamento_despachante</strong>. Sem elas as partidas
+          correspondentes não são geradas e o CSV do Domínio sai sem linhas. A conta do processo também pode ser
+          informada no campo “Conta do Processo — número” acima.</p>
         <table id="tabela-contas" class="tabela">
           <thead><tr><th>Papel contábil</th><th>Código da conta</th></tr></thead>
           <tbody></tbody>
